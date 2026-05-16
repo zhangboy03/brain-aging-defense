@@ -50,6 +50,50 @@ type Stats = {
   bestLevel: number;
 };
 
+const TRAINING_ITEMS = [
+  {
+    title: '连续计算',
+    summary: '连续心算并保持上一轮结果，训练工作记忆的更新速度。',
+    status: '待细化',
+  },
+  {
+    title: '翻牌记忆',
+    summary: '记住翻开的图案和顺序，复刻前需要继续确认完整规则。',
+    status: '待细化',
+  },
+  {
+    title: '暗格追踪',
+    summary: '猫鼠从边缘进出，整行整列推动，最后点出全部剩余鼠。',
+    status: '可玩样例',
+    ready: true,
+  },
+  {
+    title: '朗读保持',
+    summary: '朗读材料与记忆判断结合，节奏和判题规则待整理。',
+    status: '待细化',
+  },
+  {
+    title: '符号判断',
+    summary: '观察符号变化并作出快速判断，素材与关卡曲线待补。',
+    status: '待细化',
+  },
+  {
+    title: '方块追踪',
+    summary: '追踪方块位置变化，移动规则和动画节奏待复刻。',
+    status: '待细化',
+  },
+  {
+    title: '杯位追踪',
+    summary: '杯子交换后的目标追踪，需继续还原交换路径。',
+    status: '待细化',
+  },
+  {
+    title: '听算保持',
+    summary: '听觉输入下的连续计算训练，音频与答题流程待实现。',
+    status: '待细化',
+  },
+];
+
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -424,14 +468,15 @@ function TitleScreen({
   onStart: () => void;
 }) {
   const preview = useMemo(() => makeTrackPuzzle(startLevel).cells, [startLevel]);
+  const readyCount = TRAINING_ITEMS.filter((item) => item.ready).length;
 
   return (
     <main className="title-screen">
       <section className="title-card">
         <div className="title-copy">
-          <p className="kicker">5分钟集中训练</p>
-          <h1>暗格追踪</h1>
-          <p className="subtitle">记住鼠的位置，看清每一次进出推动，最后把鼠全部点出来。</p>
+          <p className="kicker">8种训练复刻计划</p>
+          <h1>脑力八练</h1>
+          <p className="subtitle">当前先完成猫鼠追踪样例。其他训练入口先列出来，规则、素材和节奏会继续补齐。</p>
           <div className="level-stepper" aria-label="初始鼠数量">
             <button type="button" onClick={() => setStartLevel(Math.max(1, startLevel - 1))} aria-label="减少鼠数量">
               <Minus size={18} />
@@ -443,7 +488,7 @@ function TitleScreen({
           </div>
           <button className="start-button" type="button" onClick={onStart}>
             <PlayIcon />
-            开始游戏
+            进入猫鼠样例
           </button>
         </div>
 
@@ -453,6 +498,35 @@ function TitleScreen({
               <span key={index} className={`preview-cell ${animal}`}>
                 <AnimalSprite animal={animal} />
               </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="training-catalog" aria-label="训练列表">
+          <div className="catalog-head">
+            <div>
+              <p className="kicker">训练列表</p>
+              <h2>当前进度</h2>
+            </div>
+            <strong>{readyCount}/8 可玩</strong>
+          </div>
+
+          <div className="training-grid">
+            {TRAINING_ITEMS.map((item, index) => (
+              <article key={item.title} className={`training-item ${item.ready ? 'is-ready' : ''}`}>
+                <div className="training-index">{String(index + 1).padStart(2, '0')}</div>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.summary}</p>
+                </div>
+                {item.ready ? (
+                  <button className="training-status ready" type="button" onClick={onStart}>
+                    开始
+                  </button>
+                ) : (
+                  <span className="training-status">{item.status}</span>
+                )}
+              </article>
             ))}
           </div>
         </div>

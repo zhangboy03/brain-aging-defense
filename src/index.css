@@ -71,6 +71,120 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
+.training-catalog {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding-top: clamp(4px, 1vw, 10px);
+}
+
+.catalog-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  border-top: 1px solid rgba(104, 114, 38, 0.18);
+  padding-top: 18px;
+}
+
+.catalog-head h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.catalog-head .kicker {
+  margin-bottom: 5px;
+}
+
+.catalog-head strong {
+  min-width: 92px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  background: #f3f1ca;
+  border: 1px solid rgba(104, 114, 38, 0.24);
+  color: var(--olive-deep);
+  text-align: center;
+  font-size: 15px;
+}
+
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.training-item {
+  position: relative;
+  min-height: 152px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(104, 114, 38, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.training-item.is-ready {
+  background:
+    radial-gradient(circle at 80% 12%, rgba(244, 199, 67, 0.28), transparent 34%),
+    linear-gradient(180deg, #fffffb, #f2f3d2);
+  border-color: rgba(104, 114, 38, 0.36);
+  box-shadow: 0 9px 20px rgba(66, 77, 24, 0.12);
+}
+
+.training-index {
+  width: 36px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #eeedcf;
+  color: var(--olive-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.training-item h3 {
+  margin: 0 0 6px;
+  color: var(--olive-deep);
+  font-size: 20px;
+  line-height: 1.18;
+}
+
+.training-item p {
+  margin: 0;
+  color: var(--soft-ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.training-status {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #f6f3db;
+  color: rgba(88, 89, 64, 0.78);
+  border: 1px solid rgba(104, 114, 38, 0.16);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.training-status.ready {
+  min-width: 72px;
+  background: linear-gradient(180deg, #e7d451, var(--olive));
+  border-color: #6f771e;
+  color: #25270d;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46), 0 4px 0 #687226;
+}
+
 .kicker {
   margin: 0 0 12px;
   color: var(--olive-dark);
@@ -768,6 +882,10 @@ h1 {
     min-height: 0;
   }
 
+  .training-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .preview-panel {
     min-height: 300px;
   }
@@ -857,6 +975,15 @@ h1 {
 @media (max-width: 430px) {
   .catmouse-shell {
     padding-inline: 8px;
+  }
+
+  .training-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-head {
+    align-items: start;
+    flex-direction: column;
   }
 
   .track-playfield {
