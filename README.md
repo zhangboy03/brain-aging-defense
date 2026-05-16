@@ -1,12 +1,72 @@
 # Brain Aging Defense
 
+A browser-based brain-training remake project inspired by Ryuta Kawashima's cognitive training research and publicly available gameplay demonstrations. The goal is to rebuild classic short-session exercises for memory, attention, tracking, and reaction training as an open, iterative web project.
+
+> Disclaimer: This is not an official Nintendo, Tohoku University, or Ryuta Kawashima project. It does not use Nintendo, professor, or original-game trademarks or branded assets. The project is intended for learning, research, and interactive prototype reconstruction.
+
+## Live Demo
+
+GitHub Pages:
+
+https://zhangboy03.github.io/brain-aging-defense/
+
+## Current Status
+
+The public page now lists 8 training entries. Only one is currently implemented as a polished playable sample:
+
+- `Hidden Grid Tracking`: a cat-and-mouse memory tracking game. The player first memorizes where the mice are, then watches cats or mice enter from the board edges and push full rows or columns. At the end, the player must identify all remaining mice.
+
+The other seven exercises are not yet refined. They are kept as visible roadmap entries: continuous calculation, card flipping memory, reading retention, symbol judgment, block tracking, cup tracking, and auditory calculation. Contributions are welcome for rules, assets, animation timing, and progression design.
+
+## Hidden Grid Tracking Rules
+
+- The board is 4 x 3, with 12 covered cells.
+- At the beginning, cats and mice are revealed briefly, then all cells are covered.
+- Each move pushes one animal in from the left, right, top, or bottom edge.
+- The whole affected row or column slides together, and one animal exits from the opposite side.
+- The entering and exiting animals can be the same or different, so the final number of mice can change.
+- To keep puzzles playable, the generator constrains the final mouse count to 2-8.
+- In the answer phase, the player must click every mouse still on the board. Clicking a cat fails the round.
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+Build and audit:
+
+```bash
+npm run build
+npm audit --audit-level=moderate
+```
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- GitHub Pages
+
+## Contribution Ideas
+
+- Refine the remaining seven training games.
+- Reconstruct each game's rules, animation timing, start flow, failure flow, and success flow from public reference videos.
+- Replace or improve assets with CC0, permissively licensed, or original artwork.
+- Improve mobile responsiveness, accessibility labels, and testable puzzle generators.
+
+---
+
+# 脑力八练
+
 一个面向浏览器的脑力训练复刻项目。项目受川岛隆太教授脑训练研究和公开演示玩法启发，目标是把经典的短时记忆、注意力、追踪和反应训练做成可持续迭代的开源网页版本。
 
 > 免责声明：本项目不是任天堂、东北大学或川岛隆太教授的官方作品，也不使用任天堂、教授或原作的商标与品牌素材。当前实现仅用于学习、研究和交互原型复刻。
 
 ## 在线体验
 
-GitHub Pages 部署后可访问：
+GitHub Pages：
 
 https://zhangboy03.github.io/brain-aging-defense/
 
@@ -53,5 +113,5 @@ npm audit --audit-level=moderate
 
 - 继续细化剩余七种训练游戏。
 - 对照公开视频还原每个游戏的节奏、动画、开始/失败/成功流程。
-- 替换更合适的 CC0 或自制素材。
+- 替换更合适的 CC0、宽松许可或自制素材。
 - 增加移动端适配、无障碍标签和可测试的关卡生成器。
