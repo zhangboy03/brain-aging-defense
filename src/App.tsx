@@ -340,6 +340,10 @@ function motionActorPosition(move: TrackMove, kind: 'enter' | 'exit') {
   return { row: 0, col: move.line };
 }
 
+function sameMotionPosition(a: { row: number; col: number }, b: { row: number; col: number }) {
+  return a.row === b.row && a.col === b.col;
+}
+
 function phaseCopy(phase: GamePhase, round: number, found: number, startTarget: number, answerTarget: number) {
   if (phase === 'reveal') return `第${round}问：记住起始 ${startTarget} 只鼠`;
   if (phase === 'cover') return `第${round}问`;
@@ -428,10 +432,13 @@ function Coach({ phase, failureReason }: { phase: GamePhase; failureReason: Fail
 function MotionLayer({ move }: { move: TrackMove }) {
   const enterPosition = motionActorPosition(move, 'enter');
   const exitPosition = motionActorPosition(move, 'exit');
+  const panelPositions = motionPanelPositions(move).filter(
+    (position) => !sameMotionPosition(position, enterPosition) && !sameMotionPosition(position, exitPosition),
+  );
 
   return (
     <div className={`motion-layer side-${move.side}`} aria-hidden="true">
-      {motionPanelPositions(move).map((position, index) => (
+      {panelPositions.map((position, index) => (
         <span
           key={`${position.row}-${position.col}-${index}`}
           className="motion-panel"
