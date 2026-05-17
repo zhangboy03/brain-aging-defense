@@ -764,24 +764,18 @@ h1 {
 }
 
 @keyframes motion-panel-push {
-  0%,
-  24% { transform: translate(0, 0); }
-  76%,
-  100% { transform: translate(var(--push-x), var(--push-y)); }
+  from { transform: translate(0, 0); }
+  to { transform: translate(var(--push-x), var(--push-y)); }
 }
 
 @keyframes motion-actor-enter {
-  0% { transform: translate(var(--enter-runway-x), var(--enter-runway-y)); }
-  24% { transform: translate(0, 0); }
-  76%,
-  100% { transform: translate(var(--push-x), var(--push-y)); }
+  from { transform: translate(var(--enter-runway-x), var(--enter-runway-y)); }
+  to { transform: translate(var(--push-x), var(--push-y)); }
 }
 
 @keyframes motion-actor-exit {
-  0%,
-  24% { transform: translate(0, 0); }
-  76% { transform: translate(var(--push-x), var(--push-y)); }
-  100% {
+  from { transform: translate(0, 0); }
+  to {
     transform: translate(
       calc(var(--push-x) + var(--exit-runway-x)),
       calc(var(--push-y) + var(--exit-runway-y))
