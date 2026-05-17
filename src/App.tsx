@@ -13,10 +13,9 @@ import {
 const SESSION_SECONDS = 300;
 const TRACK_REVEAL_MS = 2100;
 const TRACK_COVER_MS = 3300;
-const TRACK_SLIDE_MS = 720;
-const TRACK_BETWEEN_MOVES_MS = 840;
-const TRACK_AFTER_MOVES_MS = 560;
-const MOTION_RUNWAY_CELLS = 1.45;
+const TRACK_SLIDE_MS = 1040;
+const TRACK_BETWEEN_MOVES_MS = 920;
+const TRACK_AFTER_MOVES_MS = 650;
 const COLS = 4;
 const ROWS = 3;
 const MIN_TRACK_MOUSE_COUNT = 2;
@@ -327,28 +326,18 @@ function motionStyle(position: { row: number; col: number }): React.CSSPropertie
   return { '--motion-row': position.row, '--motion-col': position.col } as React.CSSProperties;
 }
 
-function motionActorStyle(move: TrackMove, kind: 'enter' | 'exit'): React.CSSProperties {
-  const runway = MOTION_RUNWAY_CELLS;
-  const style = (position: { row: number; col: number }, fromX = 0, fromY = 0, toX = 0, toY = 0) =>
-    ({
-      ...motionStyle(position),
-      '--actor-from-x': fromX,
-      '--actor-from-y': fromY,
-      '--actor-to-x': toX,
-      '--actor-to-y': toY,
-    }) as React.CSSProperties;
-
+function motionActorPosition(move: TrackMove, kind: 'enter' | 'exit') {
   if (kind === 'enter') {
-    if (move.side === 'left') return style({ row: move.line, col: 0 }, -runway);
-    if (move.side === 'right') return style({ row: move.line, col: COLS - 1 }, runway);
-    if (move.side === 'top') return style({ row: 0, col: move.line }, 0, -runway);
-    return style({ row: ROWS - 1, col: move.line }, 0, runway);
+    if (move.side === 'left') return { row: move.line, col: -1 };
+    if (move.side === 'right') return { row: move.line, col: COLS };
+    if (move.side === 'top') return { row: -1, col: move.line };
+    return { row: ROWS, col: move.line };
   }
 
-  if (move.side === 'left') return style({ row: move.line, col: COLS - 1 }, 0, 0, runway);
-  if (move.side === 'right') return style({ row: move.line, col: 0 }, 0, 0, -runway);
-  if (move.side === 'top') return style({ row: ROWS - 1, col: move.line }, 0, 0, 0, runway);
-  return style({ row: 0, col: move.line }, 0, 0, 0, -runway);
+  if (move.side === 'left') return { row: move.line, col: COLS - 1 };
+  if (move.side === 'right') return { row: move.line, col: 0 };
+  if (move.side === 'top') return { row: ROWS - 1, col: move.line };
+  return { row: 0, col: move.line };
 }
 
 function phaseCopy(phase: GamePhase, round: number, found: number, startTarget: number, answerTarget: number) {
@@ -437,6 +426,9 @@ function Coach({ phase, failureReason }: { phase: GamePhase; failureReason: Fail
 }
 
 function MotionLayer({ move }: { move: TrackMove }) {
+  const enterPosition = motionActorPosition(move, 'enter');
+  const exitPosition = motionActorPosition(move, 'exit');
+
   return (
     <div className={`motion-layer side-${move.side}`} aria-hidden="true">
       {motionPanelPositions(move).map((position, index) => (
@@ -449,12 +441,12 @@ function MotionLayer({ move }: { move: TrackMove }) {
         </span>
       ))}
 
-      <span className="motion-actor enter" style={motionActorStyle(move, 'enter')}>
+      <span className="motion-actor enter" style={motionStyle(enterPosition)}>
         <span className="actor-badge">入</span>
         <AnimalSprite animal={move.enter} />
       </span>
 
-      <span className="motion-actor exit" style={motionActorStyle(move, 'exit')}>
+      <span className="motion-actor exit" style={motionStyle(exitPosition)}>
         <span className="actor-badge">出</span>
         <AnimalSprite animal={move.exit} />
       </span>

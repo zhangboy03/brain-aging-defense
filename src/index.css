@@ -522,13 +522,13 @@ h1 {
   --cell: clamp(58px, 14vw, 82px);
   --gap: 8px;
   --slide-distance: calc(var(--cell) + var(--gap));
-  --track-slide-ms: 460ms;
+  --track-slide-ms: 1040ms;
   position: relative;
   width: fit-content;
   max-width: 100%;
   display: grid;
   place-items: center;
-  padding: clamp(34px, 8vw, 78px);
+  padding: clamp(58px, 9vw, 106px);
   transition: transform 260ms ease;
 }
 
@@ -651,10 +651,13 @@ h1 {
 .motion-layer {
   --motion-row: 0;
   --motion-col: 0;
-  --actor-from-x: 0;
-  --actor-from-y: 0;
-  --actor-to-x: 0;
-  --actor-to-y: 0;
+  --motion-runway-distance: clamp(36px, 8vw, 72px);
+  --push-x: 0px;
+  --push-y: 0px;
+  --enter-runway-x: 0px;
+  --enter-runway-y: 0px;
+  --exit-runway-x: 0px;
+  --exit-runway-y: 0px;
   position: absolute;
   inset: 7px;
   z-index: 5;
@@ -724,61 +727,64 @@ h1 {
   color: #6b7425;
 }
 
-.motion-layer.side-left .motion-panel,
-.motion-layer.side-left .motion-panel {
-  animation-name: motion-left;
+.motion-layer.side-left {
+  --push-x: var(--slide-distance);
+  --enter-runway-x: calc(-1 * var(--motion-runway-distance));
+  --exit-runway-x: var(--motion-runway-distance);
 }
 
-.motion-layer.side-right .motion-panel,
-.motion-layer.side-right .motion-panel {
-  animation-name: motion-right;
+.motion-layer.side-right {
+  --push-x: calc(-1 * var(--slide-distance));
+  --enter-runway-x: var(--motion-runway-distance);
+  --exit-runway-x: calc(-1 * var(--motion-runway-distance));
 }
 
-.motion-layer.side-top .motion-panel,
-.motion-layer.side-top .motion-panel {
-  animation-name: motion-top;
+.motion-layer.side-top {
+  --push-y: var(--slide-distance);
+  --enter-runway-y: calc(-1 * var(--motion-runway-distance));
+  --exit-runway-y: var(--motion-runway-distance);
 }
 
-.motion-layer.side-bottom .motion-panel,
-.motion-layer.side-bottom .motion-panel {
-  animation-name: motion-bottom;
+.motion-layer.side-bottom {
+  --push-y: calc(-1 * var(--slide-distance));
+  --enter-runway-y: var(--motion-runway-distance);
+  --exit-runway-y: calc(-1 * var(--motion-runway-distance));
 }
 
-.motion-actor {
-  animation-name: actor-runway;
+.motion-panel {
+  animation-name: motion-panel-push;
 }
 
-@keyframes motion-left {
-  from { transform: translateX(0); }
-  to { transform: translateX(var(--slide-distance)); }
+.motion-actor.enter {
+  animation-name: motion-actor-enter;
 }
 
-@keyframes motion-right {
-  from { transform: translateX(0); }
-  to { transform: translateX(calc(-1 * var(--slide-distance))); }
+.motion-actor.exit {
+  animation-name: motion-actor-exit;
 }
 
-@keyframes motion-top {
-  from { transform: translateY(0); }
-  to { transform: translateY(var(--slide-distance)); }
+@keyframes motion-panel-push {
+  0%,
+  24% { transform: translate(0, 0); }
+  76%,
+  100% { transform: translate(var(--push-x), var(--push-y)); }
 }
 
-@keyframes motion-bottom {
-  from { transform: translateY(0); }
-  to { transform: translateY(calc(-1 * var(--slide-distance))); }
+@keyframes motion-actor-enter {
+  0% { transform: translate(var(--enter-runway-x), var(--enter-runway-y)); }
+  24% { transform: translate(0, 0); }
+  76%,
+  100% { transform: translate(var(--push-x), var(--push-y)); }
 }
 
-@keyframes actor-runway {
-  from {
+@keyframes motion-actor-exit {
+  0%,
+  24% { transform: translate(0, 0); }
+  76% { transform: translate(var(--push-x), var(--push-y)); }
+  100% {
     transform: translate(
-      calc(var(--actor-from-x) * var(--slide-distance)),
-      calc(var(--actor-from-y) * var(--slide-distance))
-    );
-  }
-  to {
-    transform: translate(
-      calc(var(--actor-to-x) * var(--slide-distance)),
-      calc(var(--actor-to-y) * var(--slide-distance))
+      calc(var(--push-x) + var(--exit-runway-x)),
+      calc(var(--push-y) + var(--exit-runway-y))
     );
   }
 }
@@ -1012,7 +1018,7 @@ h1 {
   .track-playfield {
     --cell: clamp(50px, 19vw, 58px);
     --gap: 6px;
-    padding-inline: 42px;
+    padding-inline: 46px;
   }
 
   .track-board {
