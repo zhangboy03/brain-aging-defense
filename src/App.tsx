@@ -13,9 +13,10 @@ import {
 const SESSION_SECONDS = 300;
 const TRACK_REVEAL_MS = 2100;
 const TRACK_COVER_MS = 3300;
-const TRACK_SLIDE_MS = 460;
-const TRACK_BETWEEN_MOVES_MS = 680;
-const TRACK_AFTER_MOVES_MS = 420;
+const TRACK_SLIDE_MS = 720;
+const TRACK_BETWEEN_MOVES_MS = 840;
+const TRACK_AFTER_MOVES_MS = 560;
+const MOTION_RUNWAY_CELLS = 1.45;
 const COLS = 4;
 const ROWS = 3;
 const MIN_TRACK_MOUSE_COUNT = 2;
@@ -193,6 +194,35 @@ function buildMoveCandidates(
   return candidates;
 }
 
+function canReachMouseCount(
+  cells: TrackCell[],
+  currentMouseCount: number,
+  targetMouseCount: number,
+  stepsLeft: number,
+  bounds: { min: number; max: number },
+  memo: Map<string, boolean>,
+): boolean {
+  if (stepsLeft === 0) return currentMouseCount === targetMouseCount;
+
+  const key = `${stepsLeft}|${currentMouseCount}|${targetMouseCount}|${cells.map((cell) => cell[0]).join('')}`;
+  const cached = memo.get(key);
+  if (cached !== undefined) return cached;
+
+  const reachable = buildMoveCandidates(cells, currentMouseCount, bounds).some((candidate) =>
+    canReachMouseCount(
+      applyTrackMove(cells, candidate),
+      candidate.nextCount,
+      targetMouseCount,
+      stepsLeft - 1,
+      bounds,
+      memo,
+    ),
+  );
+
+  memo.set(key, reachable);
+  return reachable;
+}
+
 function makeTrackPuzzle(level: number): TrackPuzzle {
   const initialMouseCount = Math.min(MAX_TRACK_MOUSE_COUNT, level + 1);
   const moveCount = 14 + level * 2;
@@ -209,15 +239,34 @@ function makeTrackPuzzle(level: number): TrackPuzzle {
     let current = [...base];
     let currentMouseCount = initialMouseCount;
     let speciesChangingMoves = 0;
+    let builtBalancedPath = true;
+    const reachMemo = new Map<string, boolean>();
 
     for (let i = 0; i < moveCount; i += 1) {
       const candidates = buildMoveCandidates(current, currentMouseCount, bounds);
-      const changingCandidates = candidates.filter((candidate) => candidate.enter !== candidate.exit);
+      const remainingAfterThisMove = moveCount - i - 1;
+      const reachableCandidates = candidates.filter((candidate) =>
+        canReachMouseCount(
+          applyTrackMove(current, candidate),
+          candidate.nextCount,
+          initialMouseCount,
+          remainingAfterThisMove,
+          bounds,
+          reachMemo,
+        ),
+      );
+
+      if (!reachableCandidates.length) {
+        builtBalancedPath = false;
+        break;
+      }
+
+      const changingCandidates = reachableCandidates.filter((candidate) => candidate.enter !== candidate.exit);
       const movesRemaining = moveCount - i;
       const changesNeeded = minSpeciesChangingMoves - speciesChangingMoves;
       const mustChangeNow = changesNeeded >= movesRemaining;
       const prefersChange = changesNeeded > 0 && (mustChangeNow || Math.random() < 0.62);
-      const pool = prefersChange && changingCandidates.length ? changingCandidates : candidates;
+      const pool = prefersChange && changingCandidates.length ? changingCandidates : reachableCandidates;
       const candidate = shuffle(pool)[0];
       const move = {
         side: candidate.side,
@@ -232,6 +281,10 @@ function makeTrackPuzzle(level: number): TrackPuzzle {
       current = applyTrackMove(current, move);
     }
 
+    if (!builtBalancedPath || moves.length !== moveCount) {
+      continue;
+    }
+
     const candidatePuzzle = {
       cells: base,
       moves,
@@ -239,9 +292,11 @@ function makeTrackPuzzle(level: number): TrackPuzzle {
       finalMouseCount: countMice(current),
     };
 
-    fallback = fallback || candidatePuzzle;
+    if (candidatePuzzle.finalMouseCount === initialMouseCount) {
+      fallback = fallback || candidatePuzzle;
+    }
 
-    if (speciesChangingMoves >= minSpeciesChangingMoves) {
+    if (speciesChangingMoves >= minSpeciesChangingMoves && candidatePuzzle.finalMouseCount === initialMouseCount) {
       return candidatePuzzle;
     }
   }
@@ -268,22 +323,32 @@ function motionPanelPositions(move: TrackMove) {
   return Array.from({ length: ROWS + 1 }, (_, i) => ({ row: i, col: move.line }));
 }
 
-function motionActorPosition(move: TrackMove, kind: 'enter' | 'exit') {
-  if (kind === 'enter') {
-    if (move.side === 'left') return { row: move.line, col: -1 };
-    if (move.side === 'right') return { row: move.line, col: COLS };
-    if (move.side === 'top') return { row: -1, col: move.line };
-    return { row: ROWS, col: move.line };
-  }
-
-  if (move.side === 'left') return { row: move.line, col: COLS - 1 };
-  if (move.side === 'right') return { row: move.line, col: 0 };
-  if (move.side === 'top') return { row: ROWS - 1, col: move.line };
-  return { row: 0, col: move.line };
-}
-
 function motionStyle(position: { row: number; col: number }): React.CSSProperties {
   return { '--motion-row': position.row, '--motion-col': position.col } as React.CSSProperties;
+}
+
+function motionActorStyle(move: TrackMove, kind: 'enter' | 'exit'): React.CSSProperties {
+  const runway = MOTION_RUNWAY_CELLS;
+  const style = (position: { row: number; col: number }, fromX = 0, fromY = 0, toX = 0, toY = 0) =>
+    ({
+      ...motionStyle(position),
+      '--actor-from-x': fromX,
+      '--actor-from-y': fromY,
+      '--actor-to-x': toX,
+      '--actor-to-y': toY,
+    }) as React.CSSProperties;
+
+  if (kind === 'enter') {
+    if (move.side === 'left') return style({ row: move.line, col: 0 }, -runway);
+    if (move.side === 'right') return style({ row: move.line, col: COLS - 1 }, runway);
+    if (move.side === 'top') return style({ row: 0, col: move.line }, 0, -runway);
+    return style({ row: ROWS - 1, col: move.line }, 0, runway);
+  }
+
+  if (move.side === 'left') return style({ row: move.line, col: COLS - 1 }, 0, 0, runway);
+  if (move.side === 'right') return style({ row: move.line, col: 0 }, 0, 0, -runway);
+  if (move.side === 'top') return style({ row: ROWS - 1, col: move.line }, 0, 0, 0, runway);
+  return style({ row: 0, col: move.line }, 0, 0, 0, -runway);
 }
 
 function phaseCopy(phase: GamePhase, round: number, found: number, startTarget: number, answerTarget: number) {
@@ -372,9 +437,6 @@ function Coach({ phase, failureReason }: { phase: GamePhase; failureReason: Fail
 }
 
 function MotionLayer({ move }: { move: TrackMove }) {
-  const enterPosition = motionActorPosition(move, 'enter');
-  const exitPosition = motionActorPosition(move, 'exit');
-
   return (
     <div className={`motion-layer side-${move.side}`} aria-hidden="true">
       {motionPanelPositions(move).map((position, index) => (
@@ -387,12 +449,12 @@ function MotionLayer({ move }: { move: TrackMove }) {
         </span>
       ))}
 
-      <span className="motion-actor enter" style={motionStyle(enterPosition)}>
+      <span className="motion-actor enter" style={motionActorStyle(move, 'enter')}>
         <span className="actor-badge">入</span>
         <AnimalSprite animal={move.enter} />
       </span>
 
-      <span className="motion-actor exit" style={motionStyle(exitPosition)}>
+      <span className="motion-actor exit" style={motionActorStyle(move, 'exit')}>
         <span className="actor-badge">出</span>
         <AnimalSprite animal={move.exit} />
       </span>
@@ -481,7 +543,7 @@ function TitleScreen({
             <button type="button" onClick={() => setStartLevel(Math.max(1, startLevel - 1))} aria-label="减少鼠数量">
               <Minus size={18} />
             </button>
-            <strong>{startLevel + 1}匹</strong>
+            <strong>{startLevel + 1}只</strong>
             <button type="button" onClick={() => setStartLevel(Math.min(7, startLevel + 1))} aria-label="增加鼠数量">
               <Plus size={18} />
             </button>
@@ -709,7 +771,7 @@ export default function App() {
   return (
     <main className={`catmouse-shell phase-${phase}`}>
       <header className="game-topbar">
-        <div className="mouse-count">{headerMouseCount}匹</div>
+        <div className="mouse-count">{headerMouseCount}只</div>
         <div className="training-pill">集中训练时间</div>
         <div className="time-box">
           <Timer size={16} />
@@ -777,7 +839,7 @@ export default function App() {
           {stats.correct} 正确
         </span>
         <span>{stats.failed} 失败</span>
-        <span>最高 {stats.bestLevel + 1}匹</span>
+        <span>最高 {stats.bestLevel + 1}只</span>
       </aside>
 
       <footer className="asset-credit">Mouse icon: SVG Repo CC0. Cat icon: Wikimedia Commons CC0.</footer>

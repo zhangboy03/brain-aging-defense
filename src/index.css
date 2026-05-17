@@ -528,7 +528,7 @@ h1 {
   max-width: 100%;
   display: grid;
   place-items: center;
-  padding: clamp(22px, 6vw, 48px);
+  padding: clamp(34px, 8vw, 78px);
   transition: transform 260ms ease;
 }
 
@@ -651,6 +651,10 @@ h1 {
 .motion-layer {
   --motion-row: 0;
   --motion-col: 0;
+  --actor-from-x: 0;
+  --actor-from-y: 0;
+  --actor-to-x: 0;
+  --actor-to-y: 0;
   position: absolute;
   inset: 7px;
   z-index: 5;
@@ -721,23 +725,27 @@ h1 {
 }
 
 .motion-layer.side-left .motion-panel,
-.motion-layer.side-left .motion-actor {
+.motion-layer.side-left .motion-panel {
   animation-name: motion-left;
 }
 
 .motion-layer.side-right .motion-panel,
-.motion-layer.side-right .motion-actor {
+.motion-layer.side-right .motion-panel {
   animation-name: motion-right;
 }
 
 .motion-layer.side-top .motion-panel,
-.motion-layer.side-top .motion-actor {
+.motion-layer.side-top .motion-panel {
   animation-name: motion-top;
 }
 
 .motion-layer.side-bottom .motion-panel,
-.motion-layer.side-bottom .motion-actor {
+.motion-layer.side-bottom .motion-panel {
   animation-name: motion-bottom;
+}
+
+.motion-actor {
+  animation-name: actor-runway;
 }
 
 @keyframes motion-left {
@@ -758,6 +766,21 @@ h1 {
 @keyframes motion-bottom {
   from { transform: translateY(0); }
   to { transform: translateY(calc(-1 * var(--slide-distance))); }
+}
+
+@keyframes actor-runway {
+  from {
+    transform: translate(
+      calc(var(--actor-from-x) * var(--slide-distance)),
+      calc(var(--actor-from-y) * var(--slide-distance))
+    );
+  }
+  to {
+    transform: translate(
+      calc(var(--actor-to-x) * var(--slide-distance)),
+      calc(var(--actor-to-y) * var(--slide-distance))
+    );
+  }
 }
 
 .hit-ring {
@@ -989,7 +1012,7 @@ h1 {
   .track-playfield {
     --cell: clamp(50px, 19vw, 58px);
     --gap: 6px;
-    padding-inline: 26px;
+    padding-inline: 42px;
   }
 
   .track-board {
