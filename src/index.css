@@ -528,7 +528,7 @@ h1 {
   max-width: 100%;
   display: grid;
   place-items: center;
-  padding: clamp(58px, 9vw, 106px);
+  padding: clamp(74px, 13vw, 170px);
   transition: transform 260ms ease;
 }
 
@@ -651,7 +651,7 @@ h1 {
 .motion-layer {
   --motion-row: 0;
   --motion-col: 0;
-  --motion-runway-distance: clamp(36px, 8vw, 72px);
+  --motion-runway-distance: var(--slide-distance);
   --push-x: 0px;
   --push-y: 0px;
   --enter-runway-x: 0px;
@@ -1018,7 +1018,7 @@ h1 {
   .track-playfield {
     --cell: clamp(50px, 19vw, 58px);
     --gap: 6px;
-    padding-inline: 46px;
+    padding-inline: 72px;
   }
 
   .track-board {
