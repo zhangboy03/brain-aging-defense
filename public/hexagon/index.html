@@ -63,10 +63,10 @@
       const $=id=>document.getElementById(id);
       const board=$('board'), round=$('round'), stage=$('stage'), target=$('target'), targetLabel=$('targetLabel'), msg=$('message'), footer=$('footer');
       let lastFlash=0, revealedSet=new Set();
-      function empty(){return{phase:'idle',round:0,total:10,timer:null,target:null,numbers:{},used:[],team:null,message:'打开主持人控制台，开始比赛。',scores:{thu:0,pku:0},teams:{thu:'清华',pku:'北大'},winner:'',clean:true,flashAt:0}}
+      function empty(){return{phase:'idle',round:0,total:10,timer:null,target:null,numbers:{},used:[],team:null,message:'打开主持人控制台，开始比赛。',scores:{thu:0,pku:0},teams:{thu:'清华',pku:'北大'},winner:'',clean:true,flashAt:0,reveal:null}}
       function load(){try{return JSON.parse(localStorage.getItem(STORAGE))||empty()}catch{return empty()}}
       function phaseName(p){return{idle:'WAITING',memorize:'MEMORIZE',answering:'TARGET',responding:'BUZZED',between:'ROUND END',finished:'FINISHED'}[p]||'WAITING'}
-      function usedLetters(s){const set=new Set();(s.used||[]).forEach(k=>[...k].forEach(x=>set.add(x)));return set}
+      function revealedLetters(s){const set=new Set();if(s.reveal)[...s.reveal].forEach(x=>set.add(x));return set}
       function render(s=load()){
         document.body.className=(s.clean!==false?'clean ':'')+(s.phase||'idle');
         round.textContent=(s.round||0)+'/'+(s.total||10);
@@ -74,9 +74,9 @@
         const showTarget=s.phase&&s.phase!=='idle'&&s.phase!=='memorize'&&s.target!=null;
         target.textContent=showTarget?s.target:'';
         targetLabel.textContent=showTarget?'TARGET':'';
-        const u=usedLetters(s);
+        const u=revealedLetters(s);
         board.innerHTML='';
-        rows.forEach(row=>{const r=document.createElement('div');r.className='row';row.forEach(L=>{const c=document.createElement('div');const has=s.numbers&&s.numbers[L]!=null;const isMemory=s.phase==='memorize';const isRevealed=!isMemory&&u.has(L);const showNumber=isMemory||isRevealed;const isNew=isRevealed&&!revealedSet.has(L);c.className='hex '+(has?(showNumber?'digit':'letter'):'blank')+(isRevealed?' revealed':'')+(isNew?' flip':'')+(!isRevealed&&u.has(L)?' used':'');c.textContent=has?(showNumber?s.numbers[L]:L):'';if((s.flashAt||0)>lastFlash)c.classList.add('pulse');r.appendChild(c)});board.appendChild(r)});revealedSet=s.phase==='memorize'?new Set():new Set(u);
+        rows.forEach(row=>{const r=document.createElement('div');r.className='row';row.forEach(L=>{const c=document.createElement('div');const has=s.numbers&&s.numbers[L]!=null;const isMemory=s.phase==='memorize';const isRevealed=!isMemory&&u.has(L);const showNumber=isMemory||isRevealed;const flip=has&&(isRevealed!==revealedSet.has(L));c.className='hex '+(has?(showNumber?'digit':'letter'):'blank')+(isRevealed?' revealed':'')+(flip?' flip':'')+(!isRevealed&&u.has(L)?' used':'');c.textContent=has?(showNumber?s.numbers[L]:L):'';if((s.flashAt||0)>lastFlash)c.classList.add('pulse');r.appendChild(c)});board.appendChild(r)});revealedSet=s.phase==='memorize'?new Set():new Set(u);
         if((s.flashAt||0)>lastFlash){lastFlash=s.flashAt;setTimeout(()=>document.querySelectorAll('.pulse').forEach(x=>x.classList.remove('pulse')),760)}
         msg.innerHTML=s.showHint ? (s.message||'') : '';
         const winner=s.winner||'';footer.setAttribute('data-winner',winner);
