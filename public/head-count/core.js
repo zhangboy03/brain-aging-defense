@@ -188,34 +188,36 @@
     const chTop = GEO.chimney.top;
     const startX = ev.side === 'left' ? GEO.edgeL : GEO.edgeR;
 
+    // NOTE: alpha (a) stays 1 the whole time — people appear/disappear crisply
+    // by crossing a screen edge or being occluded by the wall/roof (sprites are
+    // drawn behind the house), never by fading. Easier to count.
     if (ev.via === 'door') {
       if (ev.type === 'in') {
-        // walk from edge to door, fade as entering
+        // walk from the side edge to the door; vanishes the instant the wall
+        // occludes them (and the event ends) — no fade
         return [
-          { frac: 0.82, from: { x: startX, y: G, s: 1, a: 1 }, to: { x: doorX, y: G, s: 1, a: 1 } },
-          { frac: 0.18, from: { x: doorX, y: G, s: 1, a: 1 }, to: { x: doorX, y: G, s: 0.7, a: 0 } },
+          { frac: 1, from: { x: startX, y: G, s: 1, a: 1 }, to: { x: doorX, y: G, s: 1, a: 1 } },
         ];
       }
-      // out: emerge at door, walk to edge
+      // out: emerge from behind the wall, walk to the side edge — no fade
       return [
-        { frac: 0.18, from: { x: doorX, y: G, s: 0.7, a: 0 }, to: { x: doorX, y: G, s: 1, a: 1 } },
-        { frac: 0.82, from: { x: doorX, y: G, s: 1, a: 1 }, to: { x: startX, y: G, s: 1, a: 1 } },
+        { frac: 1, from: { x: doorX, y: G, s: 1, a: 1 }, to: { x: startX, y: G, s: 1, a: 1 } },
       ];
     }
     // chimney
     if (ev.type === 'in') {
-      // descend from sky onto chimney top, then sink in
+      // slide straight down from off the top edge, then sink into the chimney
+      // (the roof occludes them on the way down) — no fade
       return [
-        { frac: 0.55, from: { x: chX, y: chTop - 220, s: 1, a: 0 }, to: { x: chX, y: chTop, s: 1, a: 1 } },
-        { frac: 0.10, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop, s: 1, a: 1 } },
-        { frac: 0.35, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop + 50, s: 0.35, a: 0 } },
+        { frac: 0.62, from: { x: chX, y: chTop - 300, s: 1, a: 1 }, to: { x: chX, y: chTop, s: 1, a: 1 } },
+        { frac: 0.38, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop + 64, s: 1, a: 1 } },
       ];
     }
-    // chimney out: emerge from the chimney and rise STRAIGHT UP off the top of the screen
+    // chimney out: emerge from the chimney and rise STRAIGHT UP off the top edge — no fade
     return [
-      { frac: 0.35, from: { x: chX, y: chTop + 55, s: 0.4, a: 0 }, to: { x: chX, y: chTop, s: 1, a: 1 } },        // rise out of chimney
-      { frac: 0.12, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop - 12, s: 1, a: 1 } },           // brief pause on top
-      { frac: 0.53, from: { x: chX, y: chTop - 12, s: 1, a: 1 }, to: { x: chX, y: chTop - 340, s: 1, a: 0 } },     // straight up, fade off top
+      { frac: 0.40, from: { x: chX, y: chTop + 64, s: 1, a: 1 }, to: { x: chX, y: chTop, s: 1, a: 1 } },          // rise out of chimney
+      { frac: 0.10, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop - 14, s: 1, a: 1 } },           // brief beat on top
+      { frac: 0.50, from: { x: chX, y: chTop - 14, s: 1, a: 1 }, to: { x: chX, y: chTop - 360, s: 1, a: 1 } },     // straight up, off the top edge
     ];
   }
 
