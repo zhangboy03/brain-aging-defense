@@ -324,23 +324,17 @@
       const n = Math.max(0, count | 0);
       if (!n) return;
       const cx = VB_W / 2, base = GEO.groundY;
-      const spacingX = 54, rowGap = 78;
-      // up to 5 in one row; otherwise split into a back + front row
-      const rows = n <= 5 ? [n] : [n - Math.ceil(n / 2), Math.ceil(n / 2)];
-      // append back-to-front so the front row overlaps the back row in z-order
-      rows.forEach((cnt, ri) => {
-        const fromBack = rows.length - 1 - ri;     // 0 = front row
-        const y = base - fromBack * rowGap;
-        const scale = 1 - fromBack * 0.12;          // back row a touch smaller
-        const stagger = (rows.length > 1 && fromBack > 0) ? spacingX / 2 : 0;
-        for (let i = 0; i < cnt; i++) {
-          const x = cx + (i - (cnt - 1) / 2) * spacingX + stagger;
-          const p = makePerson(cls);
-          p.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${scale.toFixed(3)})`);
-          p.setAttribute('opacity', 1);
-          g.appendChild(p);
-        }
-      });
+      // single tidy row; shrink slightly as the count grows so it always fits
+      // and people never touch (person ~42px wide; spacing keeps a clear gap).
+      const scale = n <= 7 ? 0.96 : 0.86;
+      const spacingX = 56 * scale + 14;            // gap-aware spacing
+      for (let i = 0; i < n; i++) {
+        const x = cx + (i - (n - 1) / 2) * spacingX;
+        const p = makePerson(cls);
+        p.setAttribute('transform', `translate(${x.toFixed(1)},${base}) scale(${scale.toFixed(3)})`);
+        p.setAttribute('opacity', 1);
+        g.appendChild(p);
+      }
     }
 
     function setRound(r) {
