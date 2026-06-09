@@ -125,13 +125,13 @@
   const NS = 'http://www.w3.org/2000/svg';
   const VB_W = 1000, VB_H = 640;
   const GEO = {
-    groundY: 470,           // feet line / house base
-    house: { cx: 500, bodyTop: 320, bodyW: 250, roofApexY: 232, roofW: 330 },
-    chimney: { x: 560, w: 38, top: 258, bottom: 320 },
-    window: { cx: 488, cy: 392, pane: 22, gap: 6 },
-    door: { w: 64, h: 60 },  // bottom-center of body
-    personH: 96,             // person silhouette height at scale 1
-    edgeL: -80, edgeR: 1080, // off-screen spawn/exit x
+    groundY: 472,           // feet line / house base
+    house: { cx: 500, bodyTop: 298, bodyW: 272, roofApexY: 206, roofW: 352 },
+    chimney: { x: 566, w: 40, top: 226, bottom: 300 },
+    window: { cx: 500, cy: 352, pane: 23, gap: 9 },  // centered above the door
+    door: { w: 70, h: 66 },  // bottom-center of body
+    personH: 98,             // person silhouette height at scale 1
+    edgeL: -90, edgeR: 1090, // off-screen spawn/exit x
   };
 
   function el(tag, attrs) {
@@ -139,16 +139,38 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   }
-  // person silhouette, origin at feet center (0,0), grows upward (toward -y)
+  // Person silhouette, origin at feet center (0,0), grows upward (toward -y).
+  // Round head (separate circle) + torso with two arms hanging at the sides
+  // and two legs apart — friendly "Brain Training" look. ~98px tall at scale 1.
+  const PERSON_BODY =
+    'M-5,-70 ' +
+    'C-11,-70 -14,-68 -15,-64 ' +        // left shoulder
+    'C-16,-61 -19,-59 -20,-54 ' +        // upper-left arm
+    'L-19,-39 ' +                        // forearm (outer)
+    'C-19,-34 -13,-34 -13,-39 ' +        // round the hand
+    'L-12,-52 ' +                        // inner arm up to armpit
+    'L-11,-28 ' +                        // torso side down to waist
+    'L-12,-3 ' +                         // outer left leg
+    'C-12,0 -4,0 -4,-3 ' +               // left foot
+    'L-3,-25 ' +                         // inner left leg to crotch
+    'C-1,-28 1,-28 3,-25 ' +             // crotch
+    'L4,-3 ' +                           // inner right leg
+    'C4,0 12,0 12,-3 ' +                 // right foot
+    'L11,-28 ' +                         // right waist
+    'L12,-52 ' +                         // up to right armpit
+    'L13,-39 ' +                         // inner right arm
+    'C13,-34 19,-34 19,-39 ' +           // round the hand
+    'L20,-54 ' +                         // forearm (outer)
+    'C19,-59 16,-61 15,-64 ' +           // upper-right arm
+    'C14,-68 11,-70 5,-70 ' +            // right shoulder back to neck
+    'Z';
   function personPath() {
-    return 'M0,-96 a14,14 0 1,0 0.01,0 Z M-17,-66 Q0,-72 17,-66 ' +
-           'L11,-30 L15,0 L4,0 L0,-26 L-4,0 L-15,0 L-11,-30 Z';
+    return 'M0,-97 a13,13 0 1,0 0.01,0 Z ' + PERSON_BODY;
   }
   function makePerson(cls) {
     const g = el('g', { class: 'hc-person' + (cls ? ' ' + cls : '') });
-    g.appendChild(el('circle', { cx: 0, cy: -82, r: 14 }));
-    const body = el('path', { d: 'M-17,-66 Q0,-72 17,-66 L11,-30 L15,0 L4,0 L0,-26 L-4,0 L-15,0 L-11,-30 Z' });
-    g.appendChild(body);
+    g.appendChild(el('circle', { cx: 0, cy: -84, r: 13 }));
+    g.appendChild(el('path', { d: PERSON_BODY }));
     return g;
   }
 
@@ -299,21 +321,26 @@
 
     function placeCluster(g, count, cls) {
       clearGroup(g);
-      const n = Math.max(0, count);
+      const n = Math.max(0, count | 0);
+      if (!n) return;
       const cx = VB_W / 2, base = GEO.groundY;
-      // arrange in a tidy huddle: rows of up to 4
-      const perRow = 4, spacingX = 56, spacingY = 8, scale = 0.92;
-      for (let i = 0; i < n; i++) {
-        const row = Math.floor(i / perRow);
-        const inRow = Math.min(perRow, n - row * perRow);
-        const idx = i % perRow;
-        const x = cx + (idx - (inRow - 1) / 2) * spacingX;
-        const y = base - row * spacingY;
-        const p = makePerson(cls);
-        p.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${scale})`);
-        p.setAttribute('opacity', 1);
-        g.appendChild(p);
-      }
+      const spacingX = 54, rowGap = 78;
+      // up to 5 in one row; otherwise split into a back + front row
+      const rows = n <= 5 ? [n] : [n - Math.ceil(n / 2), Math.ceil(n / 2)];
+      // append back-to-front so the front row overlaps the back row in z-order
+      rows.forEach((cnt, ri) => {
+        const fromBack = rows.length - 1 - ri;     // 0 = front row
+        const y = base - fromBack * rowGap;
+        const scale = 1 - fromBack * 0.12;          // back row a touch smaller
+        const stagger = (rows.length > 1 && fromBack > 0) ? spacingX / 2 : 0;
+        for (let i = 0; i < cnt; i++) {
+          const x = cx + (i - (cnt - 1) / 2) * spacingX + stagger;
+          const p = makePerson(cls);
+          p.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${scale.toFixed(3)})`);
+          p.setAttribute('opacity', 1);
+          g.appendChild(p);
+        }
+      });
     }
 
     function setRound(r) {
@@ -487,7 +514,7 @@
           const pos = sampleSegments(sp.segs, local);
           sp.nodes.forEach((node, k) => {
             if (local < 0 || local > 1) { node.setAttribute('opacity', 0); return; }
-            const off = (k - (sp.ev.n - 1) / 2) * 30; // spread wave members
+            const off = (k - (sp.ev.n - 1) / 2) * 46; // spread wave members
             node.setAttribute('opacity', pos.a.toFixed(3));
             node.setAttribute('transform', `translate(${(pos.x + off).toFixed(1)},${pos.y.toFixed(1)}) scale(${pos.s.toFixed(3)})`);
           });
