@@ -88,14 +88,26 @@
       events[i] = { type, via, side, n };
     }
 
-    // schedule: each event starts gapMs after the previous start
+    // schedule: events on DIFFERENT lanes (door vs chimney) may overlap for
+    // liveliness, but events on the SAME lane never overlap — the previous
+    // person fully clears and an empty beat passes before the next appears at
+    // that spot. Keeps in/out unambiguous when two events hit the same place
+    // back-to-back.
+    const laneOf = (ev) => (ev.via === 'chimney' ? 'chimney' : 'door');
+    const beat = Math.round(p.moveMs * 0.3);  // empty gap after a lane clears
+    const laneFree = {};                       // lane -> earliest next start (ms)
     let cursor = 0;
+    let span = 0;
     for (const ev of events) {
-      ev.startAt = cursor;          // ms, relative to start of events phase
+      const lane = laneOf(ev);
+      const startAt = Math.max(cursor, laneFree[lane] || 0);
+      ev.startAt = startAt;         // ms, relative to start of events phase
       ev.dur = p.moveMs;
-      cursor += p.gapMs;
+      laneFree[lane] = startAt + p.moveMs + beat;
+      cursor += p.gapMs;            // nominal cadence for the next event
+      span = Math.max(span, startAt + p.moveMs);
     }
-    const eventsSpan = cursor + p.moveMs; // total play time of events phase
+    const eventsSpan = span + 120;  // total play time of events phase (+small tail)
 
     return {
       seed: seedStr,
