@@ -16,10 +16,10 @@
   // chimney:   allow chimney entries/exits
   // maxInside: cap on people inside (keeps answers sane)
   const PRESETS = {
-    warmup:   { label: '热身',     observeMs: 1900, dropMs: 1080, moveMs: 1100, gapMs: 820, events: 5,  waveMax: 2, chimney: false, maxInside: 8  },
-    standard: { label: '标准赛题', observeMs: 1450, dropMs: 900,  moveMs: 900,  gapMs: 560, events: 8,  waveMax: 3, chimney: false, maxInside: 9  },
-    hard:     { label: '高压',     observeMs: 1120, dropMs: 760,  moveMs: 680,  gapMs: 340, events: 12, waveMax: 4, chimney: true,  maxInside: 10 },
-    final:    { label: '决赛压轴', observeMs: 850,  dropMs: 600,  moveMs: 540,  gapMs: 220, events: 16, waveMax: 5, chimney: true,  maxInside: 12 },
+    warmup:   { label: '热身',     observeMs: 2100, dropMs: 1100, moveMs: 1150, gapMs: 1300, events: 3,  waveMax: 1, chimney: false, maxInside: 6 },
+    standard: { label: '标准赛题', observeMs: 1750, dropMs: 950,  moveMs: 1000, gapMs: 820,  events: 5,  waveMax: 2, chimney: false, maxInside: 7 },
+    hard:     { label: '高压',     observeMs: 1450, dropMs: 820,  moveMs: 820,  gapMs: 580,  events: 8,  waveMax: 2, chimney: true,  maxInside: 8 },
+    final:    { label: '决赛压轴', observeMs: 1150, dropMs: 700,  moveMs: 700,  gapMs: 430,  events: 11, waveMax: 3, chimney: true,  maxInside: 9 },
   };
   const PRESET_ORDER = ['warmup', 'standard', 'hard', 'final'];
 
@@ -189,13 +189,11 @@
         { frac: 0.35, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop + 50, s: 0.35, a: 0 } },
       ];
     }
-    // chimney out: rise out to stand on chimney, then hop down roof side and walk off
-    const offX = GEO.edgeR;
+    // chimney out: emerge from the chimney and rise STRAIGHT UP off the top of the screen
     return [
-      { frac: 0.32, from: { x: chX, y: chTop + 50, s: 0.35, a: 0 }, to: { x: chX, y: chTop, s: 1, a: 1 } },
-      { frac: 0.10, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop, s: 1, a: 1 } },
-      { frac: 0.20, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: GEO.house.cx + GEO.house.bodyW / 2 + 30, y: G, s: 1, a: 1 } },
-      { frac: 0.38, from: { x: GEO.house.cx + GEO.house.bodyW / 2 + 30, y: G, s: 1, a: 1 }, to: { x: offX, y: G, s: 1, a: 1 } },
+      { frac: 0.35, from: { x: chX, y: chTop + 55, s: 0.4, a: 0 }, to: { x: chX, y: chTop, s: 1, a: 1 } },        // rise out of chimney
+      { frac: 0.12, from: { x: chX, y: chTop, s: 1, a: 1 }, to: { x: chX, y: chTop - 12, s: 1, a: 1 } },           // brief pause on top
+      { frac: 0.53, from: { x: chX, y: chTop - 12, s: 1, a: 1 }, to: { x: chX, y: chTop - 340, s: 1, a: 0 } },     // straight up, fade off top
     ];
   }
 
