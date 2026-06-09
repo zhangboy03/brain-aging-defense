@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>进出数数 · 选手大屏</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gochi+Hand&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1b1b1a;
+      --paper: #f6f3ea;
+      --paper2: #efe9da;
+      --line: #cfc7b3;
+      --red: #e23b34;
+      --green: #34b85a;
+      --thu: #6a2c8f;   /* 清华紫 */
+      --pku: #c0392b;   /* 北大红 */
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background:
+        radial-gradient(ellipse at 30% 20%, #fbfaf5 0%, var(--paper) 55%, var(--paper2) 100%);
+      color: var(--ink);
+      font-family: 'Patrick Hand', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .frame { position: fixed; inset: 0; display: grid; grid-template-columns: 1fr minmax(0, 64vh) 1fr; align-items: stretch; }
+
+    /* scoreboards */
+    .score { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vh; padding: 3vh 1vw; }
+    .score .name { font-size: clamp(22px, 3.2vw, 56px); letter-spacing: .06em; opacity: .9; }
+    .score .num {
+      font-family: 'Gochi Hand', 'Patrick Hand', cursive;
+      font-size: clamp(60px, 11vw, 200px); line-height: .9;
+    }
+    .score .tag { font-size: clamp(13px, 1.2vw, 20px); opacity: .55; letter-spacing: .12em; }
+    .score.thu .num { color: var(--thu); }
+    .score.pku .num { color: var(--pku); }
+    .score .verdict { font-size: clamp(16px, 1.8vw, 30px); min-height: 1.4em; }
+    .score .verdict.right { color: var(--green); }
+    .score .verdict.wrong { color: var(--red); }
+
+    /* center stage */
+    .stagewrap { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .stagecard {
+      position: relative; width: 100%; aspect-ratio: 5 / 6; max-height: 94vh;
+      background: #fffdf7;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 18px 60px rgba(60, 50, 20, .14), inset 0 0 0 1px #fff;
+      overflow: hidden;
+    }
+    .stagecard::before {
+      /* faint ruled-paper texture */
+      content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .35;
+      background-image: linear-gradient(to bottom, transparent 31px, #e7e0cd 32px);
+      background-size: 100% 32px;
+    }
+    svg.hc-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+    .roundtag {
+      position: absolute; top: 1.4vh; left: 50%; transform: translateX(-50%);
+      font-size: clamp(13px, 1.2vw, 20px); letter-spacing: .08em; opacity: .5;
+      white-space: nowrap; z-index: 3;
+    }
+    .waiting {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: clamp(20px, 2.4vw, 40px); color: #97907c; z-index: 4;
+      text-align: center; padding: 0 8%;
+    }
+
+    /* stage element styles */
+    .hc-fill { fill: var(--ink); }
+    .hc-window { fill: #fffdf7; }
+    .hc-door { fill: #fffdf7; }
+    .hc-groundline { stroke: #d9d2bf; stroke-width: 3; stroke-linecap: round; }
+    .hc-person circle, .hc-person path { fill: var(--ink); }
+    .hc-person.is-answer circle, .hc-person.is-answer path { fill: var(--red); }
+    .hc-toptext { fill: #6f6856; font-size: 40px; letter-spacing: .14em; }
+    .hc-count { fill: var(--ink); font-family: 'Gochi Hand', cursive; font-size: 150px; }
+    .hc-smallnum { fill: var(--ink); font-family: 'Gochi Hand', cursive; font-size: 88px; }
+    .hc-bignum { fill: var(--ink); font-family: 'Gochi Hand', cursive; font-size: 200px; }
+    .hc-divider { stroke: #d9d2bf; stroke-width: 3; }
+    .hc-check { fill: none; stroke: var(--green); stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; }
+    .hc-revealcluster, .hc-prompt text { }
+    .hc-prompt text { fill: #8a826d; font-size: 30px; letter-spacing: .1em; }
+
+    .offline { position: fixed; bottom: 10px; right: 14px; font-size: 13px; color: #b7af9a; z-index: 9; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="score thu" id="scoreThu">
+      <div class="name">清华队</div>
+      <div class="num" id="numThu">0</div>
+      <div class="tag">TSINGHUA</div>
+      <div class="verdict" id="verdictThu"></div>
+    </div>
+
+    <div class="stagewrap">
+      <div class="stagecard">
+        <div class="roundtag" id="roundtag">进出数数</div>
+        <svg id="stage"></svg>
+        <div class="waiting" id="waiting">等待主持人开始…</div>
+      </div>
+    </div>
+
+    <div class="score pku" id="scorePku">
+      <div class="name">北大队</div>
+      <div class="num" id="numPku">0</div>
+      <div class="tag">PEKING</div>
+      <div class="verdict" id="verdictPku"></div>
+    </div>
+  </div>
+  <div class="offline" id="offline"></div>
+
+  <script src="core.js"></script>
+  <script>
+    const svg = document.getElementById('stage');
+    const waiting = document.getElementById('waiting');
+    const roundtag = document.getElementById('roundtag');
+    const numThu = document.getElementById('numThu');
+    const numPku = document.getElementById('numPku');
+    const verdictThu = document.getElementById('verdictThu');
+    const verdictPku = document.getElementById('verdictPku');
+
+    const stage = HeadCount.HeadCountStage(svg, {
+      onPhase(p) {
+        // show "waiting" overlay only in idle
+        waiting.style.display = (p === 'idle') ? 'flex' : 'none';
+      },
+    });
+
+    function setVerdict(node, v) {
+      node.className = 'verdict' + (v === 'right' ? ' right' : v === 'wrong' ? ' wrong' : '');
+      node.textContent = v === 'right' ? '✓ 答对' : v === 'wrong' ? '✗ 答错' : '';
+    }
+
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('head-count') : null;
+    const offline = document.getElementById('offline');
+    if (!bc) offline.textContent = '此浏览器不支持频道同步';
+
+    function handle(msg) {
+      if (!msg || !msg.type) return;
+      switch (msg.type) {
+        case 'round':
+          stage.setRound(msg.round);
+          waiting.style.display = 'none';
+          roundtag.textContent = `第 ${msg.roundNo || 1} 题 · ${msg.round.presetLabel}`;
+          setVerdict(verdictThu, ''); setVerdict(verdictPku, '');
+          break;
+        case 'start':
+          stage.startObserve();
+          break;
+        case 'reveal':
+          stage.reveal();
+          break;
+        case 'reset':
+          stage.reset();
+          waiting.style.display = 'flex';
+          waiting.textContent = '等待主持人开始…';
+          break;
+        case 'scores':
+          numThu.textContent = msg.thu;
+          numPku.textContent = msg.pku;
+          break;
+        case 'verdict':
+          if (msg.team === 'thu') setVerdict(verdictThu, msg.value);
+          if (msg.team === 'pku') setVerdict(verdictPku, msg.value);
+          break;
+        case 'ping':
+          if (bc) bc.postMessage({ type: 'player-ready' });
+          break;
+      }
+    }
+
+    if (bc) {
+      bc.onmessage = (e) => handle(e.data);
+      bc.postMessage({ type: 'player-ready' });
+    }
+
+    // fullscreen on click (host drags this window to projector and clicks)
+    document.querySelector('.stagecard').addEventListener('dblclick', () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(() => {});
+    });
+  </script>
+</body>
+</html>
