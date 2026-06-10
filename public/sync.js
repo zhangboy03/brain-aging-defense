@@ -11,7 +11,17 @@
  *   Sync.console(room)                     -> { claim, pushState, pushEvent }
  */
 (function () {
-  var BACKEND = "https://brain-aging-sync.ai-builders.space";
+  // Default production relay; overridable for local testing or re-pointing
+  // without editing this file: ?backend=… , window.SYNC_BACKEND, or
+  // localStorage 'sync_backend'.
+  var DEFAULT_BACKEND = "https://brain-aging-sync.ai-builders.space";
+  var override = null;
+  try {
+    override = new URLSearchParams(location.search).get("backend") ||
+      (typeof window !== "undefined" && window.SYNC_BACKEND) ||
+      localStorage.getItem("sync_backend");
+  } catch (_) {}
+  var BACKEND = (override || DEFAULT_BACKEND).replace(/\/+$/, "");
 
   function reachable() {
     return fetch(BACKEND + "/healthz", { cache: "no-store" })
