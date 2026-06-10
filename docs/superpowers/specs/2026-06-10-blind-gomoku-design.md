@@ -60,9 +60,31 @@
 - 单控制台锁（claim/heartbeat，现有能力）防止误开第二个控制台。
 - 落子链路 iPad→relay→控制台→relay→iPad 约 200–400ms，轮流制棋类无感。
 
+**消息消费规则**（relay 广播是无差别全员扇出，各端必须按 kind 过滤）：
+控制台只消费 `event`、忽略 `state`（包括自己 pushState 的回显，否则与内存权威状态打架）；
+iPad 只消费 `state`、忽略 `event`（包括双方的 move 请求回显）。
+
+**「请求必达」不成立时的自愈原则**：relay 的 event 不持久化、广播只达当前在线者，
+因此协议中所有「请求-裁决」环节都不假设单次送达，而是**让一切关键信息可从 state
+快照单源重建/重发**：
+
+1. **join 状态驱动重发**：iPad 每次收到 state 时，若本机已选队但
+   `state.joined[myTeam]` 不是本机 deviceId，则自动重发 join（幂等）。
+   控制台后开 / 刷新窗口期丢失的 join 由此自愈。
+2. **pushState 必达**：控制台 pushState 失败自动重试直至成功；且控制台自身的 SSE
+   每次重连（onopen）时**无条件重推当前权威 state**——覆盖 relay 容器重启丢快照的场景。
+3. **决胜手也走 2 的重试**，不存在「phase 已 finished 但 iPad 永远看不到揭示」。
+
 **前提**：主持人控制台必须全程在线（它是游戏引擎）。控制台短暂掉线不丢局——
 权威状态在控制台内存 + relay 快照里各有一份，控制台刷新后从 `GET /r/blind-gomoku/snapshot`
 恢复权威状态（state 里含全部所需信息）。
+
+**锁的真实语义与接管**：relay 不校验 state/event 的锁 token，锁纯属客户端自律，
+且 sync.js 的心跳响应被丢弃、旧控制台无法自知失锁。因此 admin.html 必须**自行检查
+心跳响应**：收到 `ok:false` 立即转只读（停止处理 move、停止 pushState，显示
+「已被另一控制台接管」横幅），杜绝双引擎 split-brain。控制台启动时 claim 返回 busy
+则自动 `force=true` 重试一次（刷新场景下旧锁要 10s 才过期；锁本来就只是防误开的
+安全网，被顶掉的一方会因心跳失败转只读）。
 
 ## 4. 文件与组件
 
@@ -84,11 +106,14 @@ index.html / src 不动；public/ 由 Vite 原样拷贝进 dist，走现有 GitH
 
 ```js
 state = {
-  v: 17,                  // 单调递增版本号，iPad 丢弃旧版本
+  epoch: 1749571200000,   // 控制台每次冷启动（无快照可恢复时）取 Date.now()
+  v: 17,                  // epoch 内单调递增
+  // iPad 接受规则：epoch 更大 → 无条件全量接受；epoch 相同 → 只接受 v 更大的。
+  // 否则 relay 重启+控制台刷新后 v 从头计数，iPad 会按旧规则静默丢弃一切新状态。
   gameId: 3,              // 每开新局 +1；move 事件必须带相同 gameId 才有效
   phase: 'lobby' | 'playing' | 'finished',
   seats: { tsinghua: 'b'|'w'|null, pku: 'b'|'w'|null },  // 开局时随机分配
-  joined: { tsinghua: bool, pku: bool },                 // 两队是否已就位
+  joined: { tsinghua: deviceId|null, pku: deviceId|null }, // 就位=记录设备指纹，防双机绑同队
   turn: 'b' | 'w',
   board: [ [null | {s:'b'|'w', c:'red'|…, n:moveNo}, …15], …15 ],  // s=真实色 c=表面色
   moveCount: 0,
@@ -107,12 +132,18 @@ state = {
 iPad 事件（`pushEvent`）：
 
 ```js
-{ type: 'join', team: 'tsinghua'|'pku' }
-{ type: 'move', gameId, team, x, y, color }   // color = 表面色
+{ type: 'join', team: 'tsinghua'|'pku', deviceId }  // deviceId: iPad 首次打开时随机生成，存 sessionStorage
+{ type: 'move', gameId, team, x, y, color }         // color = 表面色
 ```
 
+join 语义：某队为空 → 记录该 deviceId；已是同一 deviceId → 幂等忽略；
+已被**其他** deviceId 占用 → 忽略。iPad 只在 `state.joined[myTeam] === myDeviceId`
+时才认为自己就位，否则显示「该队已被占用，请重新选队」并允许重选
+（清除本地队伍绑定）。胜负判定优先级：**先判连五，再判下满**（第 225 手连五算胜不算平）。
+
 控制台动作：开局（随机 seats、turn='b'、清盘、gameId+1、phase='playing'）、
-重置回 lobby、强制结束（phase='finished'、revealed=true、winner 维持 null 表示无胜者）。
+重置回 lobby（**同时清空 joined**，iPad 凭重发机制自动重新 join）、
+强制结束（phase='finished'、revealed=true、winner 维持 null 表示无胜者）。
 
 ## 6. iPad 棋手页交互
 
@@ -126,16 +157,23 @@ iPad 事件（`pushEvent`）：
      （序号开关默认关，主持人可在控制台全局开启以降低难度）。
    - 调色盘：8 色横排，先选色（默认上次用的色）再点棋盘交点落子；
      落子需二次确认（点交点出现幽灵子 → 再点确认），防误触。
-   - 乐观渲染：确认后立刻显示幽灵子为半透明，待权威 state 到达后转正/回滚。
+   - 乐观渲染：确认后立刻显示半透明幽灵子。**转正/回滚不以「下一个 state」为准**
+     （无关 state 如序号开关切换会误杀在途合法 move）：新 state 中该格已有子或 turn
+     已翻转 → 按权威结果转正/清除；若 5 秒内无裁决（如 move 在控制台离线期丢失）→
+     超时清除幽灵子并恢复可下，提示「未送达，请重下」。
    - 非己方回合时棋盘只读。
 4. **揭示**：phase='finished' 时全盘翻面动画（表面色 → 真实黑白），高亮获胜五连，
    显示「清华(黑) 获胜」/「平局」/「主持人结束了本局」。
 5. **可靠性**：Screen Wake Lock 防息屏（失败则提示关自动锁定）；EventSource 自动重连
-   即自动对齐（relay 补快照）。
+   即自动对齐（relay 补快照）。另加**僵尸连接看门狗**：relay 在队列满时会把订阅者移出
+   广播列表但连接表面仍活着（EventSource 不会自发重连），因此 iPad 在 phase='playing'
+   且 90 秒未收到任何消息时主动 `es.close()` 重建连接（重建即补快照，误触发无害）。
 
 ## 7. 控制台页（admin.html）
 
-- claim 锁（busy 时提示并提供强制接管），心跳续锁——直接复用 `Sync.console`。
+- claim 锁：启动时 claim，busy 则自动 `force=true` 重试一次（覆盖刷新后旧锁未过期的
+  10s 窗口，对齐 C5「刷新即恢复」）；心跳复用 `Sync.console` 但**自行检查响应**，
+  `ok:false` 立即转只读 +「已被另一控制台接管」横幅（见 §3 锁的真实语义）。
 - 显示双方就位状态；按钮：**开始新一局**（两队都就位才可点）/ **重置** / **强制结束并揭示**。
 - 上帝视角棋盘：每颗子内圈显示真实黑白、外环显示表面色，并标落子序号；侧栏滚动
   显示着法记录（第 n 手 清华(黑) H8 表面红）。
@@ -146,21 +184,25 @@ iPad 事件（`pushEvent`）：
 
 | 情况 | 处理 |
 |---|---|
-| move 不合法（非本回合/占用/坐标越界/gameId 过期） | 控制台静默丢弃；iPad 幽灵子在下一个 state 回滚消失 |
-| 两队抢同一队名 | 控制台先到先得，后到的 join 被忽略；iPad 看 state.joined 自行更正 |
-| iPad 断线/睡眠 | SSE 重连自动补快照，无需人工操作 |
-| 控制台掉线/刷新 | 从 relay snapshot 恢复权威状态；期间 iPad 落子请求丢失，重下即可 |
-| relay 不可达 | iPad/控制台顶部显示红色「连接断开」横幅，自动重试；无本地降级（跨设备是本游戏的全部意义） |
-| 误开第二控制台 | claim 返回 busy，提示 + 可强制接管（旧台心跳失败转只读） |
+| move 不合法（非本回合/占用/坐标越界/gameId 过期） | 控制台静默丢弃；iPad 幽灵子按 §6 裁决/超时规则清除 |
+| 两队抢同一队名 | deviceId 先到先得；后到 iPad 见 `joined[team] !== myDeviceId`，提示重选队 |
+| join 在控制台离线/刷新窗口丢失 | iPad 状态驱动重发（见 §3 自愈原则 1），自动补上 |
+| iPad 断线/睡眠 | SSE 重连自动补快照；僵尸连接由 90s 看门狗重建 |
+| 控制台掉线/刷新 | 从 relay snapshot 恢复权威状态（含 epoch/v 续接）；期间 iPad 落子请求丢失，幽灵子 5s 超时提示重下 |
+| relay 不可达 / pushState 失败 | 顶部红色「连接断开」横幅；pushState 自动重试直至成功，控制台 SSE 重连时无条件重推 state |
+| relay 容器重启丢快照 | 控制台重推 state 恢复；若控制台同时刷新，epoch 机制保证 iPad 接受新序列 |
+| 误开第二控制台 | 新台自动强制接管，旧台心跳响应 ok:false 转只读 + 横幅 |
 
 ## 9. 测试
 
 - **单元测试**（`node --test scripts/test_blind_gomoku.mjs`，纯逻辑零依赖）：
   - 落子校验：回合轮转、占用拒绝、越界拒绝、lobby/finished 阶段拒绝、gameId 过期拒绝。
   - 连五判定:横/竖/两条对角、长连（≥6）也算胜、棋盘边缘的五连。
-  - 平局：下满 225 手无五连。
+  - 平局：下满 225 手无五连；第 225 手连五 → 算胜不算平（优先级）。
   - 揭示数据：winner/winLine/revealed 正确。
   - 随机分边：seats 恰好一黑一白。
+  - join 语义：空位记录 deviceId、同 deviceId 幂等、异 deviceId 拒绝、重置清空 joined。
+  - state 接受规则：epoch 大无条件接受；同 epoch 比 v；旧的丢弃。
 - **后端**：不改，现有 pytest 已覆盖。
 - **手动验收**（部署后）：本机两个浏览器窗口模拟两台 iPad + 一个控制台窗口跑通整局：
   选队→开局→交替落子→连五→全盘揭示；中途断开一个「iPad」标签再连，画面自动对齐。
@@ -236,9 +278,11 @@ iPad 事件（`pushEvent`）：
 | E3 | 越界 | x=15 或负数 | 丢弃，v 不变 | C4 |
 | E4 | 阶段 | lobby/finished 阶段发 move | 丢弃 | C4 |
 | E5 | 过期 | 携带旧 gameId 的 move | 丢弃 | C4 |
-| E6 | 抢队 | 两台 iPad 先后 join 同一队 | 先到先得，后者被忽略 | C1 |
+| E6 | 抢队 | 两台 iPad（不同 deviceId）先后 join 同一队 | 先到的 deviceId 占位，后者被拒；同 deviceId 重发幂等 | C1 |
 | E7 | 平局 | 225 手下满无连五 | winner='draw'，phase='finished' | C1 |
 | E8 | 边缘 | 紧贴棋盘边线的连五（含角点） | 正确判胜，不越界扫描 | C1 |
+| E9 | 优先级 | 第 225 手（下满）同时连五 | winner=该方，不是 draw | C1 |
+| E10 | 版本 | 收到 epoch 更大但 v 更小的 state | 无条件接受（控制台冷启动新序列） | C1 |
 
 ### Adversarial（A1–A2）
 | ID | Attack type | Input | Expected behavior | Criterion |
