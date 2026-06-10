@@ -96,6 +96,7 @@ state = {
   winner: null | 'b' | 'w' | 'draw',
   winLine: [[x,y]×5+] | null,
   revealed: bool,         // finished 后全盘翻面
+  showNumbers: bool,      // 控制台开关：是否给选手显示落子序号（默认 false）
 }
 ```
 
@@ -171,19 +172,85 @@ iPad 事件（`pushEvent`）：
   - 控制台：`https://zhangboy03.github.io/brain-aging-defense/blind-gomoku/admin.html`
 - 后端：零改动，无需重新部署。房间名固定 `blind-gomoku`，与现有游戏房间天然隔离。
 
-## 11. 非目标（Out of scope）
+## 11. Dimensions in scope
 
-- 不做服务端反作弊 / 隐藏真实颜色（见 §5 信息安全说明）。
+确定性功能（无 LLM 参与），适用维度：
+
+- **功能正确性**：五子棋规则引擎（落子校验、连五/长连/平局判定、随机分边）。
+- **错误处理**：非法落子、过期事件、抢队冲突、断线、误开控制台。
+- **性能**：跨设备同步延迟（轮流制棋类，宽松）。
+- **可靠性**：iPad 睡眠唤醒自愈、控制台刷新恢复。
+- **安全**：仅做最小校验（控制台校验回合与占用）；反作弊明确排除（见 §5、§14）。
+
+## 12. Success Criteria
+
+### C1 — 规则引擎正确
+- **Criterion**：`node --test scripts/test_blind_gomoku.mjs` 覆盖 §13 全部 Happy/Edge 逻辑用例且全绿。
+- **Threshold for ship**：100% 通过，0 跳过。
+- **Grader**：code（node --test）。
+
+### C2 — 跨设备同步延迟
+- **Criterion**：WHEN 一台设备落子 THE SYSTEM SHALL 在同一 Wi-Fi 下 1 秒内（连续 20 手目测无一例外）让另两块屏呈现该手棋。
+- **Threshold for ship**：20/20 手 ≤1s。
+- **Grader**：human（部署后手动验收，三窗口模拟）。
+
+### C3 — 断线自愈
+- **Criterion**：WHEN iPad 页面断开 SSE ≥30 秒后恢复 THE SYSTEM SHALL 在 5 秒内不经刷新自动呈现与权威一致的局面。
+- **Threshold for ship**：连续 3 次断连/恢复试验全部自愈。
+- **Grader**：human。
+
+### C4 — 非法操作零副作用
+- **Criterion**：非本回合落子、占用点落子、过期 gameId 事件，均不改变权威状态（state.v 不递增）。
+- **Threshold for ship**：单测断言 + 手动各试 1 次。
+- **Grader**：code + human。
+
+### C5 — 控制台可恢复
+- **Criterion**：WHEN 控制台在对局中刷新 THE SYSTEM SHALL 从 relay snapshot 恢复权威状态，且下一手落子正常处理。
+- **Threshold for ship**：手动试验 2 次均成功。
+- **Grader**：human。
+
+### C6 — 构建与部署
+- **Criterion**：`npm run build` 零错误；merge 后 GitHub Pages 上 `/blind-gomoku/` 与 `/blind-gomoku/admin.html` 可访问且能连上 relay。
+- **Threshold for ship**：线上 URL 全部 200 且页面可用。
+- **Grader**：code（build）+ human（线上烟测）。
+
+## 13. Test Cases
+
+### Happy path（T1–T8，单测为主）
+| ID | Input | Expected | Criterion |
+|---|---|---|---|
+| T1 | 两队 join 后控制台开局 | seats 恰好一黑一白，turn='b'，phase='playing'，gameId+1 | C1 |
+| T2 | 黑方在空点落子（任意表面色） | board 记录 {s,c,n}，turn 翻转为 'w'，v+1 | C1 |
+| T3 | 横向连五 | winner=该方，winLine 为该 5 点，phase='finished'，revealed=true | C1 |
+| T4 | 纵向连五 | 同上 | C1 |
+| T5 | 主对角连五 | 同上 | C1 |
+| T6 | 副对角连五 | 同上 | C1 |
+| T7 | 长连（6 连） | 算胜，winLine 含 ≥5 点 | C1 |
+| T8 | 表面色与真实色无关（白方用黑色表面子连五） | 判定只看 s 不看 c | C1 |
+
+### Edge cases（E1–E8）
+| ID | Category | Input | Expected | Criterion |
+|---|---|---|---|---|
+| E1 | 回合 | 白方在黑方回合发 move | 丢弃，v 不变 | C4 |
+| E2 | 占用 | 在已占交点落子 | 丢弃，v 不变 | C4 |
+| E3 | 越界 | x=15 或负数 | 丢弃，v 不变 | C4 |
+| E4 | 阶段 | lobby/finished 阶段发 move | 丢弃 | C4 |
+| E5 | 过期 | 携带旧 gameId 的 move | 丢弃 | C4 |
+| E6 | 抢队 | 两台 iPad 先后 join 同一队 | 先到先得，后者被忽略 | C1 |
+| E7 | 平局 | 225 手下满无连五 | winner='draw'，phase='finished' | C1 |
+| E8 | 边缘 | 紧贴棋盘边线的连五（含角点） | 正确判胜，不越界扫描 | C1 |
+
+### Adversarial（A1–A2）
+| ID | Attack type | Input | Expected behavior | Criterion |
+|---|---|---|---|---|
+| A1 | 伪造事件 | 手工 POST 冒充对方队伍的 move | 若恰逢该队回合则会被接受——**已知接受的风险**（§5），不在防御范围；非该队回合则丢弃 | C4 |
+| A2 | 偷看状态 | DevTools 读 state 里的真实色 s | 不防御，接受风险（现场 iPad Safari 场景） | — |
+
+## 14. Out of scope
+
+- 不做服务端反作弊 / 真实颜色隐藏（A1/A2 明确接受，理由见 §5）。
 - 不做多房间 / 多场并行、账号、observer 大屏（控制台即上帝视角，可投屏）。
 - 不做计时器、悔棋、禁手规则、比分多局制（主持人口头记分）。
-- 不做 AI 对手（节目里是人机战，我们是人人战）。
-- 不做本地 localStorage/BroadcastChannel 降级。
-
-## 12. 成功标准
-
-- 一台 iPad 落子后，另一台 iPad 与控制台在 **1 秒内** 呈现该手棋（表面色一致）。
-- 任意真实颜色连五的瞬间，三屏同时进入揭示态，winLine 高亮正确。
-- iPad 锁屏 30 秒后唤醒，**无需刷新**自动回到当前局面。
-- 非法操作（非本回合点棋盘、点已占交点）不产生任何状态变化。
-- 控制台刷新后能继续当前对局（恢复自 relay 快照）。
-- `npm run build` 通过且 `node --test` 全绿。
+- 不做 AI 对手；不做本地 localStorage/BroadcastChannel 降级。
+- 不做自动化端到端测试（C2/C3/C5 用一次性手动验收，本游戏为单场活动用途，
+  无持续回归需求；规则引擎的回归由 C1 单测覆盖）。
