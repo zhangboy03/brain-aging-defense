@@ -56,18 +56,21 @@
     <a href="admin.html" target="_blank">主持人控制台</a>
     <button id="full">全屏</button>
   </div>
+  <script src="../sync.js"></script>
   <script>
     (()=>{
       const STORAGE='hexagon:v2:state', CHANNEL='hexagon-v2';
       const rows=[['A','B','C'],['D','E','F','G'],['H','I','J','K','L'],['M','N','O','P'],['Q','R','S']];
       const $=id=>document.getElementById(id);
       const board=$('board'), round=$('round'), stage=$('stage'), target=$('target'), targetLabel=$('targetLabel'), msg=$('message'), footer=$('footer');
-      let lastFlash=0, revealedSet=new Set();
+      let lastFlash=0, revealedSet=new Set(), lastState=null;
       function empty(){return{phase:'idle',round:0,total:10,timer:null,target:null,numbers:{},used:[],team:null,message:'打开主持人控制台，开始比赛。',scores:{thu:0,pku:0},teams:{thu:'清华',pku:'北大'},winner:'',clean:true,flashAt:0,reveal:null}}
       function load(){try{return JSON.parse(localStorage.getItem(STORAGE))||empty()}catch{return empty()}}
       function phaseName(p){return{idle:'WAITING',memorize:'MEMORIZE',answering:'TARGET',responding:'BUZZED',between:'ROUND END',finished:'FINISHED'}[p]||'WAITING'}
       function revealedLetters(s){const set=new Set();if(s.reveal)[...s.reveal].forEach(x=>set.add(x));return set}
       function render(s=load()){
+        lastState=s;
+        if(s&&Number.isFinite(s.endAt)){s.timer=Math.max(0,Math.ceil((s.endAt-Date.now())/1000));}
         document.body.className=(s.clean!==false?'clean ':'')+(s.phase||'idle');
         round.textContent=(s.round||0)+'/'+(s.total||10);
         stage.textContent=phaseName(s.phase)+(Number.isFinite(s.timer)?' · '+s.timer:'');
@@ -83,6 +86,16 @@
       }
       window.addEventListener('storage',e=>{if(e.key===STORAGE)render(load())});
       if('BroadcastChannel' in window){const bc=new BroadcastChannel(CHANNEL);bc.onmessage=e=>render(e.data||load())}
+      // Cross-device: subscribe to the relay. Backend pushes the full state S.
+      if(window.Sync){Sync.display('hexagon',S=>render(S));}
+      // Local countdown tick: if state carries endAt, re-render every 250ms so
+      // the timer ticks smoothly without per-second network messages.
+      setInterval(()=>{if(lastState&&Number.isFinite(lastState.endAt)&&lastState.timer>0)render(lastState);},250);
+      // Keep iPad displays awake during a game (Safari 16.4+).
+      let _wake=null;
+      async function keepAwake(){try{_wake=await navigator.wakeLock.request('screen');}catch(_){}}
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();});
+      keepAwake();
       $('full').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen?.()};
       document.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='f')$('full').click()});
       render();
