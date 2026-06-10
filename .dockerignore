@@ -1,0 +1,14 @@
+# The backend image only needs server/. Keep the frontend and tooling out so the
+# 256 MB nano container stays lean.
+node_modules
+dist
+src
+public
+.git
+.github
+.accelerate
+.gstack
+docs
+scripts
+*.tsbuildinfo
+.DS_Store
