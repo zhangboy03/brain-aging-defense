@@ -27,7 +27,7 @@
   跨设备中转后端部署到 **AI Builder Space**（底层 Koyeb 容器）。
 - **AI Builder Space 部署约束**：根目录 `Dockerfile`、**单进程单端口**、256MB 内存、
   必须读 `PORT` 环境变量、**public 仓库**、**不得提交密钥**。
-  部署地址 `https://{service-name}.ai-builders.space`，免费 12 个月、最多 2 个服务。
+  部署地址 `https://brain-aging-sync.ai-builders.space`，免费 12 个月、最多 2 个服务。
 - 后端代码放**本仓库**（用户确认），根 Dockerfile 只构建后端，
   GitHub Pages 的 Actions 流水线照旧、与后端部署互不干扰。
 
@@ -111,7 +111,7 @@
   收到 `state` 调 `onState`，收到 `event` 调 `onEvent`。
 - `Sync.console(room)`：控制台用。提供 `pushState(s)` / `pushEvent(e)` / `claim()` /
   心跳定时器；返回锁状态。
-- `BACKEND` 常量写在文件顶部（`https://{service}.ai-builders.space`）。
+- `BACKEND` 常量写在文件顶部：`https://brain-aging-sync.ai-builders.space`。
 - **降级**：探测后端不可达时，回退到原 `localStorage` + `BroadcastChannel`
   （同设备仍可用），不破坏现有体验。
 
