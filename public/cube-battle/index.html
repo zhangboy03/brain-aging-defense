@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>魔方大战｜投屏页</title>
+  <style>
+    :root{
+      --bg:#030304;--char:#f7f2e8;--gold:#c7a45a;--muted:rgba(247,242,232,.58);
+      --line:rgba(220,196,139,.28);--thu:#7b63d8;--pku:#c8273a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--char);font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background:
+      radial-gradient(circle at 50% 40%,rgba(147,22,39,.16),transparent 36%),
+      radial-gradient(circle at 51% 47%,rgba(224,181,93,.07),transparent 46%),
+      linear-gradient(180deg,#090708 0%,#030304 58%,#050202 100%)}
+    .screen{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-rows:minmax(64px,11vh) 1fr minmax(56px,9vh);padding:2.6vh 3.2vw;gap:1.6vh}
+    .hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;letter-spacing:.14em;font-weight:800}
+    .teamHud{display:flex;align-items:baseline;gap:14px}
+    .teamHud.right{justify-self:end;flex-direction:row-reverse}
+    .teamHud .name{font-size:clamp(16px,2.4vmin,30px);color:var(--muted);text-transform:uppercase}
+    .teamHud .score{font-size:clamp(34px,6.4vmin,86px);line-height:1;color:var(--char);text-shadow:0 0 24px rgba(199,164,90,.18)}
+    .teamHud.buzzed .name,.teamHud.buzzed .score{color:#f4d38a;text-shadow:0 0 30px rgba(244,211,138,.5)}
+    .teamHud .bar{width:10px;height:.78em;align-self:center;border-radius:6px}
+    .hud .center{justify-self:center;text-align:center}
+    .stageTag{font-size:clamp(14px,2vmin,24px);padding:.5em 1.1em;border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.34);letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    .locked .stageTag{border-color:rgba(199,164,90,.65);color:#f4d38a}
+    .boards{display:flex;align-items:center;justify-content:center;gap:3.2vw;min-height:0}
+    .panel{background:#efe9da;border-radius:14px;padding:.9vmin;box-shadow:0 26px 60px rgba(0,0,0,.6),0 0 0 1px rgba(220,196,139,.22);position:relative}
+    .grid{display:grid;gap:1px;background:#cfc6ae}
+    .cell{width:var(--cell);height:var(--cell);position:relative}
+    .cell.diffHit{z-index:3}
+    .cell.diffHit:after{content:"";position:absolute;inset:-7px;border:4px solid #14e08a;border-radius:8px;box-shadow:0 0 0 3px #0009,0 0 26px #14e08a;animation:ring 1s ease infinite}
+    @keyframes ring{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+    .footer{display:grid;place-items:center;text-align:center}
+    .message{max-width:88vw;color:rgba(247,242,232,.78);font-size:clamp(17px,2.6vmin,34px);letter-spacing:.05em}
+    .message strong{color:#f1d18b;font-weight:900}
+    .finished .boards{opacity:.3;filter:blur(1.5px)}
+    .winBanner{position:fixed;inset:0;display:none;place-items:center;z-index:6;pointer-events:none}
+    .finished .winBanner{display:grid}
+    .winBanner div{font-family:"Arial Narrow",Impact,"PingFang SC",sans-serif;font-size:clamp(44px,9vmin,128px);font-weight:900;letter-spacing:.1em;color:#f4d38a;text-shadow:0 0 48px rgba(199,164,90,.4)}
+    .launcher{position:fixed;z-index:7;right:22px;bottom:20px;display:flex;gap:10px;opacity:.36;transition:opacity .2s}.launcher:hover{opacity:1}
+    .launcher button,.launcher a{border:1px solid rgba(247,242,232,.2);background:rgba(0,0,0,.45);color:var(--char);border-radius:999px;padding:10px 13px;text-decoration:none;font-size:13px;cursor:pointer}
+    :fullscreen .launcher{display:none}
+    @media(max-aspect-ratio:1/1){.boards{flex-direction:column;gap:2vh}}
+  </style>
+</head>
+<body class="idle">
+  <main class="screen">
+    <header class="hud">
+      <div class="teamHud" id="thuHud"><span class="bar" style="background:var(--thu)"></span><span class="name" id="thuName">清华</span><span class="score" id="thuScore">0</span></div>
+      <div class="center"><span class="stageTag" id="stage">WAITING</span></div>
+      <div class="teamHud right" id="pkuHud"><span class="bar" style="background:var(--pku)"></span><span class="name" id="pkuName">北大</span><span class="score" id="pkuScore">0</span></div>
+    </header>
+    <section class="boards" id="boards">
+      <div class="panel"><div class="grid" id="gridL"></div></div>
+      <div class="panel"><div class="grid" id="gridR"></div></div>
+    </section>
+    <footer class="footer"><div class="message" id="message">打开主持人控制台，开始比赛。</div></footer>
+  </main>
+  <div class="winBanner"><div id="winText"></div></div>
+  <div class="launcher">
+    <a href="admin.html" target="_blank">主持人控制台</a>
+    <button id="full">全屏</button>
+  </div>
+  <script src="../sync.js"></script>
+  <script>
+    (()=>{
+      const STORAGE='cube-battle:v1:state', CHANNEL='cube-battle-v1', ROOM='cube-battle';
+      const PAL=['#ffffff','#ffd500','#e3342f','#ff8a00','#2353e8','#2bc24e'];
+      const $=id=>document.getElementById(id);
+      const gridL=$('gridL'), gridR=$('gridR'), stage=$('stage'), msg=$('message'), winText=$('winText');
+      const thuName=$('thuName'), pkuName=$('pkuName'), thuScore=$('thuScore'), pkuScore=$('pkuScore');
+      const thuHud=$('thuHud'), pkuHud=$('pkuHud');
+      let lastGridKey='', lastS=null;
+      function empty(){return{phase:'idle',round:0,cols:20,rows:20,grid:'',diffIndex:-1,diffColor:0,team:null,scores:{thu:0,pku:0},teams:{thu:'清华',pku:'北大'},winScore:5,winner:'',message:'打开主持人控制台，开始比赛。',reveal:false}}
+      function load(){try{return JSON.parse(localStorage.getItem(STORAGE))||empty()}catch{return empty()}}
+      function phaseName(s){return({idle:'WAITING',playing:'SPOT IT',locked:(s.teams[s.team]||'')+' 作答',revealed:'答案揭晓',finished:'FINISHED'})[s.phase]||'WAITING'}
+      // Cell size: both grids must fit side by side (or stacked in portrait).
+      function cellSize(s){
+        const land=innerWidth>innerHeight;
+        const availW=(land?(innerWidth*.44):(innerWidth*.86))-(s.cols-1);
+        const availH=(land?(innerHeight*.70):(innerHeight*.36))-(s.rows-1);
+        return Math.max(6,Math.floor(Math.min(availW/s.cols,availH/s.rows)))+'px';
+      }
+      function buildGrid(el,s,right){
+        el.style.gridTemplateColumns='repeat('+s.cols+',var(--cell))';
+        el.innerHTML='';
+        for(let i=0;i<s.rows*s.cols;i++){
+          const d=document.createElement('div');
+          const c=(right&&i===s.diffIndex)?s.diffColor:+s.grid[i];
+          d.className='cell';d.style.background=PAL[c]||'#222';
+          el.appendChild(d);
+        }
+      }
+      function render(s){
+        s=s||lastS||load();lastS=s; // cache so resize/rotation re-renders don't lose relay-pushed state
+        document.body.className=s.phase||'idle';
+        document.body.style.setProperty('--cell',cellSize(s));
+        stage.textContent=(s.round?('第 '+s.round+' 题 · '):'')+phaseName(s);
+        thuName.textContent=s.teams.thu;pkuName.textContent=s.teams.pku;
+        thuScore.textContent=s.scores.thu;pkuScore.textContent=s.scores.pku;
+        thuHud.classList.toggle('buzzed',s.team==='thu');
+        pkuHud.classList.toggle('buzzed',s.team==='pku');
+        const key=s.grid+'|'+s.diffIndex+'|'+s.diffColor+'|'+getComputedStyle(document.body).getPropertyValue('--cell');
+        if(key!==lastGridKey){lastGridKey=key;
+          if(s.grid&&s.grid.length===s.rows*s.cols){buildGrid(gridL,s,false);buildGrid(gridR,s,true)}
+          else{gridL.innerHTML='';gridR.innerHTML=''}
+        }
+        [gridL,gridR].forEach(g=>{[...g.children].forEach((c,i)=>c.classList.toggle('diffHit',!!s.reveal&&i===s.diffIndex))});
+        msg.innerHTML=s.message||'';
+        winText.textContent=s.winner||'';
+      }
+      window.addEventListener('storage',e=>{if(e.key===STORAGE)render(load())});
+      if('BroadcastChannel' in window){const bc=new BroadcastChannel(CHANNEL);bc.onmessage=e=>render(e.data||load())}
+      // Cross-device: relay pushes the full state; pure re-render.
+      if(window.Sync){Sync.display(ROOM,S=>render(S));}
+      window.addEventListener('resize',()=>{lastGridKey='';render()});
+      // Keep iPad displays awake during a game (Safari 16.4+).
+      let _wake=null;
+      async function keepAwake(){try{_wake=await navigator.wakeLock.request('screen');}catch(_){}}
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();});
+      keepAwake();
+      $('full').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen?.()};
+      document.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='f')$('full').click()});
+      render();
+    })();
+  </script>
+</body>
+</html>

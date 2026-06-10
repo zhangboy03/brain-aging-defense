@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>魔方大战 控制台</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(circle at 15% 0,#5038b633,transparent 28%),radial-gradient(circle at 80% 0,#9d142733,transparent 30%),#070708;color:#f3eee5;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+    button,input,select{font:inherit}
+    button{border:1px solid #efe2c71f;border-radius:13px;background:#ffffff10;color:#f3eee5;padding:10px 12px;cursor:pointer}
+    button:disabled{opacity:.38;cursor:not-allowed}
+    .primary{background:linear-gradient(#e6cf85,#a77d31);color:#120d03;font-weight:900}
+    .good{background:#1f7a4788}.bad{background:#95192b88}
+    .app{display:grid;grid-template-columns:300px 1fr 340px;gap:14px;padding:14px}
+    .top,.panel{background:#111114df;border:1px solid #efe2c71c;border-radius:22px;box-shadow:0 24px 70px #0008}
+    .top{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 18px}
+    h1{margin:0;font-size:28px;letter-spacing:.08em}h2{margin:0 0 11px;font-size:17px}
+    .sub,.hint{color:#f3eee59a;font-size:13px;line-height:1.5}
+    .sec{padding:15px;border-bottom:1px solid #efe2c714}.sec:last-child{border-bottom:0}
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stack{display:grid;gap:8px}
+    label{display:block;color:#f3eee59a;font-size:12px;margin:0 0 5px}
+    input,select{width:100%;border:1px solid #efe2c71c;border-radius:13px;background:#0005;color:#fff;min-height:40px;padding:8px 10px}
+    select option{background:#1a1a1e}
+    .metric{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:15px;border-bottom:1px solid #efe2c714}
+    .m{background:#0004;border:1px solid #efe2c714;border-radius:16px;padding:11px;text-align:center}
+    .m span{display:block;color:#f3eee59a;font-size:12px}.m b{display:block;font-size:30px;line-height:1}
+    .ansLoc b{color:#e6cf85;font-size:22px;line-height:1.25}
+    .boardBox{display:grid;place-items:center;padding:16px;gap:12px}
+    .pair{display:flex;gap:14px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+    .pv{background:#efe9da;border-radius:8px;padding:4px}
+    .pvGrid{display:grid;gap:1px;background:#cfc6ae}
+    .pvCell{width:var(--pc,12px);height:var(--pc,12px);position:relative}
+    .pvCell.mark:after{content:"";position:absolute;inset:-4px;border:3px solid #14e08a;border-radius:5px;box-shadow:0 0 8px #14e08a;z-index:2}
+    .team{border:1px solid #efe2c714;border-left:6px solid var(--c);border-radius:18px;background:#0004;padding:12px}
+    .team.on{outline:2px solid #e6cf85}
+    .team input{border:0;background:transparent;font-weight:900;font-size:18px;padding:0}
+    .score{font-size:58px;font-weight:950;line-height:1;margin:8px 0}
+    .log{display:grid;gap:7px;max-height:245px;overflow:auto}
+    .log div{border:1px solid #efe2c714;background:#0004;border-radius:12px;padding:8px;font-size:13px}
+    .ok{border-left:4px solid #4bc47a!important}.err{border-left:4px solid #d94b4b!important}
+    .kbd{border:1px solid #fff4;border-radius:7px;padding:1px 6px}
+    .msg{border:1px solid #efe2c714;border-radius:14px;background:#0004;padding:10px;color:#f3eee5b0;line-height:1.5}
+    .msg strong{color:#e6cf85}
+    @media(max-width:1100px){.app{grid-template-columns:1fr}.metric{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div><h1>魔方大战 控制台</h1><div class="sub">两图唯一不同的色块：答对 +1，答错 −1，先到目标分获胜。投屏页只显示两图与比分；判定在这里完成。</div></div>
+    <div class="stack"><button class="primary" id="open">打开投屏页</button></div>
+  </header>
+
+  <aside class="panel">
+    <section class="sec"><h2>设置</h2><div class="stack">
+      <p><label>难度（网格尺寸）</label><select id="size">
+        <option value="12">初级 · 12 × 12</option>
+        <option value="20" selected>中级 · 20 × 20</option>
+        <option value="28">高级 · 28 × 28</option>
+      </select></p>
+      <p><label>换色策略</label><select id="mode">
+        <option value="similar" selected>相似色替换（难，不会一眼跳出）</option>
+        <option value="any">任意换色（易，适合热场）</option>
+      </select></p>
+      <p><label>获胜分数</label><input id="win" type="number" value="5" min="1" max="20"></p>
+    </div></section>
+    <section class="sec stack"><h2>比赛控制</h2>
+      <button class="primary" id="new">开始新比赛</button>
+      <div class="g2">
+        <button id="next">下一题</button>
+        <button id="show">公布答案</button>
+      </div>
+      <button class="bad" id="reset">重置</button>
+      <div class="msg">抢答快捷键：清华 <span class="kbd">Q</span>，北大 <span class="kbd">P</span>。难度/换色对下一题生效。</div>
+    </section>
+    <section class="sec"><h2>规则</h2><div class="hint">选手口述或指出大屏上的位置，主持人对照中间预览里的绿框答案人工判定。答错不换题，本题继续抢答。</div></section>
+  </aside>
+
+  <section class="panel">
+    <div class="metric">
+      <div class="m"><span>阶段</span><b id="ph">待开始</b></div>
+      <div class="m"><span>题号</span><b id="round">0</b></div>
+      <div class="m ansLoc"><span>答案位置</span><b id="loc">—</b></div>
+    </div>
+    <div class="boardBox">
+      <div class="pair">
+        <div class="pv"><div class="pvGrid" id="pvL"></div></div>
+        <div class="pv"><div class="pvGrid" id="pvR"></div></div>
+      </div>
+      <div class="msg" id="msg" style="width:100%">当前无比赛。</div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <section class="sec"><h2>比分与抢答</h2><div class="g2">
+      <div class="team" id="tc" style="--c:#6c55c8"><input id="tn" value="清华"><div class="score" id="ts">0</div>
+        <button class="primary" id="tb">清华抢答 Q</button>
+        <div class="g2" style="margin-top:8px"><button id="ta">+1</button><button id="tm">-1</button></div></div>
+      <div class="team" id="pc" style="--c:#b91b2c"><input id="pn" value="北大"><div class="score" id="ps">0</div>
+        <button class="primary" id="pb">北大抢答 P</button>
+        <div class="g2" style="margin-top:8px"><button id="pa">+1</button><button id="pm">-1</button></div></div>
+    </div></section>
+    <section class="sec stack"><h2 id="jt">等待抢答</h2>
+      <div class="g2"><button class="good" id="right" disabled>答对 +1</button><button class="bad" id="wrong" disabled>答错 −1</button></div>
+      <button id="cancel" disabled>取消抢答</button>
+    </section>
+    <section class="sec"><h2>记录</h2><div class="log" id="log"></div></section>
+  </aside>
+</main>
+<script src="../sync.js"></script>
+<script>
+(()=>{
+const K='cube-battle:v1:state',C='cube-battle-v1',ROOM='cube-battle';
+const PAL=['#ffffff','#ffd500','#e3342f','#ff8a00','#2353e8','#2bc24e'];
+const CN=['白','黄','红','橙','蓝','绿'];
+const SIMILAR={0:1,1:0,2:3,3:2,4:5,5:4}; // 白↔黄 红↔橙 蓝↔绿
+const $=x=>document.getElementById(x),bc='BroadcastChannel'in window?new BroadcastChannel(C):null;
+const E={size:$('size'),mode:$('mode'),win:$('win'),open:$('open'),new:$('new'),next:$('next'),show:$('show'),reset:$('reset'),ph:$('ph'),round:$('round'),loc:$('loc'),pvL:$('pvL'),pvR:$('pvR'),msg:$('msg'),tc:$('tc'),pc:$('pc'),tn:$('tn'),pn:$('pn'),ts:$('ts'),ps:$('ps'),tb:$('tb'),pb:$('pb'),ta:$('ta'),tm:$('tm'),pa:$('pa'),pm:$('pm'),jt:$('jt'),right:$('right'),wrong:$('wrong'),cancel:$('cancel'),log:$('log')};
+let logs=[],_sync=null;
+function fresh(){return{phase:'idle',round:0,cols:20,rows:20,grid:'',diffIndex:-1,diffColor:0,team:null,scores:{thu:0,pku:0},teams:{thu:'清华',pku:'北大'},winScore:5,winner:'',message:'打开主持人控制台，开始比赛。',reveal:false}}
+function saved(){try{return JSON.parse(localStorage.getItem(K))}catch{return null}}
+let S=saved()||fresh();
+function name(t){return(t==='thu'?E.tn.value:E.pn.value).trim()||(t==='thu'?'清华':'北大')}
+function publish(){S.teams={thu:name('thu'),pku:name('pku')};localStorage.setItem(K,JSON.stringify(S));bc&&bc.postMessage(S);if(_sync)_sync.pushState(S);render()}
+function addLog(a,b,cl=''){logs.unshift({a,b,cl,t:new Date().toLocaleTimeString('zh-CN',{hour12:false})});logs=logs.slice(0,80);render()}
+function readSet(){
+  const n=Math.min(40,Math.max(4,parseInt(E.size.value,10)||20));
+  const w=Math.min(20,Math.max(1,parseInt(E.win.value,10)||5));E.win.value=w;
+  return{n,w,similar:E.mode.value==='similar'};
+}
+function gen(n,similar){
+  let grid='';for(let i=0;i<n*n;i++)grid+=Math.floor(Math.random()*6);
+  const diffIndex=Math.floor(Math.random()*n*n),orig=+grid[diffIndex];
+  let diffColor;
+  if(similar)diffColor=SIMILAR[orig];
+  else{do{diffColor=Math.floor(Math.random()*6)}while(diffColor===orig)}
+  return{grid,diffIndex,diffColor};
+}
+function newGame(){const set=readSet();S=fresh();S.winScore=set.w;logs=[];addLog('比赛开始','先到 '+set.w+' 分获胜');nextRound()}
+function nextRound(){
+  const set=readSet();const g=gen(set.n,set.similar);
+  Object.assign(S,{phase:'playing',round:S.round+1,cols:set.n,rows:set.n,grid:g.grid,diffIndex:g.diffIndex,diffColor:g.diffColor,team:null,reveal:false,winner:'',winScore:set.w,message:'<strong>第 '+(S.round+1)+' 题</strong>：找出两图中唯一不同的色块！'});
+  publish();
+}
+function buzz(t){if(S.phase!=='playing')return;Object.assign(S,{phase:'locked',team:t,message:'<strong>'+name(t)+'</strong> 抢答！请指出不同色块的位置。'});publish()}
+function judgeRight(){
+  if(S.phase!=='locked')return;const t=S.team;
+  S.scores[t]=(S.scores[t]||0)+1;S.reveal=true;S.team=null;
+  addLog('答对 +1',name(t)+' · 第 '+S.round+' 题','ok');
+  if(S.scores[t]>=S.winScore){
+    S.phase='finished';S.winner=name(t)+' 获胜！';S.message='<strong>'+name(t)+'</strong> 率先到达 '+S.winScore+' 分！';
+    addLog('比赛结束',S.winner+' 比分 '+S.scores.thu+' - '+S.scores.pku,'ok');
+  }else{
+    S.phase='revealed';S.message='<strong>'+name(t)+'</strong> 答对了 +1！差异色块已高亮。';
+  }
+  publish();
+}
+function judgeWrong(){
+  if(S.phase!=='locked')return;const t=S.team;
+  S.scores[t]=(S.scores[t]||0)-1;
+  Object.assign(S,{phase:'playing',team:null,message:'<strong>'+name(t)+'</strong> 答错 −1，本题继续抢答！'});
+  addLog('答错 −1',name(t)+' · 第 '+S.round+' 题','err');publish();
+}
+function cancelBuzz(){if(S.phase!=='locked')return;addLog('取消抢答',name(S.team));Object.assign(S,{phase:'playing',team:null,message:'抢答已取消，继续比对。'});publish()}
+function showAnswer(){
+  if(!['playing','locked'].includes(S.phase))return;
+  Object.assign(S,{phase:'revealed',team:null,reveal:true,message:'主持人公布答案，本题不计分。'});
+  addLog('公布答案','第 '+S.round+' 题无人答出');publish();
+}
+function score(t,d){S.scores[t]=(S.scores[t]||0)+d;publish()}
+function locText(){
+  if(S.diffIndex<0||!S.grid)return'—';
+  const r=Math.floor(S.diffIndex/S.cols)+1,c=S.diffIndex%S.cols+1;
+  return'第'+r+'行 第'+c+'列<br>'+CN[+S.grid[S.diffIndex]]+'→'+CN[S.diffColor];
+}
+function drawPv(el,right){
+  el.style.gridTemplateColumns='repeat('+S.cols+',var(--pc,12px))';
+  el.innerHTML='';
+  if(!S.grid)return;
+  const pc=Math.max(6,Math.min(14,Math.floor(380/S.cols)));
+  el.style.setProperty('--pc',pc+'px');
+  for(let i=0;i<S.rows*S.cols;i++){
+    const d=document.createElement('div');
+    const c=(right&&i===S.diffIndex)?S.diffColor:+S.grid[i];
+    d.className='pvCell'+(i===S.diffIndex?' mark':'');
+    d.style.background=PAL[c]||'#222';
+    el.appendChild(d);
+  }
+}
+function render(){
+  E.ph.textContent={idle:'待开始',playing:'抢答中',locked:'作答中',revealed:'已揭晓',finished:'结束'}[S.phase]||'待开始';
+  E.round.textContent=S.round||0;
+  E.loc.innerHTML=locText();
+  E.msg.innerHTML=S.message||'';
+  E.ts.textContent=S.scores.thu||0;E.ps.textContent=S.scores.pku||0;
+  E.tc.classList.toggle('on',S.team==='thu');E.pc.classList.toggle('on',S.team==='pku');
+  E.tb.disabled=E.pb.disabled=S.phase!=='playing';
+  E.right.disabled=E.wrong.disabled=E.cancel.disabled=S.phase!=='locked';
+  E.next.disabled=S.phase!=='revealed';
+  E.show.disabled=!['playing','locked'].includes(S.phase);
+  E.jt.textContent=S.phase==='locked'?name(S.team)+' 作答中 — 判定':'等待抢答';
+  drawPv(E.pvL,false);drawPv(E.pvR,true);
+  E.log.innerHTML=logs.map(x=>'<div class="'+x.cl+'"><b>'+x.a+'</b> <span class="hint">'+x.t+'</span><br><span class="hint">'+x.b+'</span></div>').join('');
+}
+E.open.onclick=()=>window.open('./','cube_display');
+E.new.onclick=newGame;E.next.onclick=nextRound;E.show.onclick=showAnswer;
+E.reset.onclick=()=>{S=fresh();logs=[];publish()};
+E.tb.onclick=()=>buzz('thu');E.pb.onclick=()=>buzz('pku');
+E.ta.onclick=()=>score('thu',1);E.tm.onclick=()=>score('thu',-1);
+E.pa.onclick=()=>score('pku',1);E.pm.onclick=()=>score('pku',-1);
+E.right.onclick=judgeRight;E.wrong.onclick=judgeWrong;E.cancel.onclick=cancelBuzz;
+document.onkeydown=e=>{if(e.target.tagName==='INPUT')return;if(e.key.toLowerCase()==='q')buzz('thu');if(e.key.toLowerCase()==='p')buzz('pku')};
+render();
+// Cross-device: claim the single-console lock, then push current state out.
+(async()=>{
+  if(!window.Sync)return;
+  _sync=Sync.console(ROOM);
+  let res=await _sync.claim(false);
+  if(res&&!res.ok){if(confirm('已有一个控制台在线，是否强制接管？'))res=await _sync.claim(true);}
+  if(res&&res.ok)publish();
+})();
+})();
+</script>
+</body>
+</html>
