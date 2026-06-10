@@ -214,6 +214,7 @@
   </div>
 
   <script src="core.js"></script>
+  <script src="../sync.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('head-count') : null;
@@ -285,7 +286,28 @@
     }
 
     // --- broadcast helpers ---
-    function post(msg) { if (bc) bc.postMessage(msg); }
+    // Cross-device relay: keep a declarative snapshot (round/roundNo/phase/scores)
+    // so late-joining or reconnecting displays render the correct static view,
+    // and emit imperative events for animation triggers.
+    let _sync = null;
+    const _snap = { round: null, roundNo: state.roundNo, phase: 'idle', scores: state.scores };
+    function pushSnap(patch) { Object.assign(_snap, patch); if (_sync) _sync.pushState(_snap); }
+    function pushEvt(type, extra) { if (_sync) _sync.pushEvent(Object.assign({ type }, extra || {})); }
+
+    function post(msg) {
+      if (bc) bc.postMessage(msg);            // same-device fallback (player listens on bc)
+      if (!msg || !msg.type) return;
+      switch (msg.type) {
+        case 'round':   pushSnap({ round: msg.round, roundNo: msg.roundNo, phase: 'ready' });
+                        pushEvt('round', { round: msg.round, roundNo: msg.roundNo }); break;
+        case 'start':   pushSnap({ phase: 'observe' }); pushEvt('start'); break;
+        case 'reveal':  pushSnap({ phase: 'reveal' });  pushEvt('reveal'); break;
+        case 'reset':   pushSnap({ phase: 'idle', round: null }); pushEvt('reset'); break;
+        case 'scores':  pushSnap({ scores: { thu: msg.thu, pku: msg.pku }, roundNo: msg.roundNo }); break;
+        case 'verdict': pushEvt('verdict', { team: msg.team, value: msg.value }); break;
+        case 'ping':    pushEvt('ping'); break;
+      }
+    }
     function pushScores() {
       $('sThu').textContent = state.scores.thu;
       $('sPku').textContent = state.scores.pku;
@@ -395,6 +417,15 @@
     setConn(false);
     pushScores();
     $('roundLabel').textContent = '第 ' + state.roundNo + ' 题';
+
+    // Cross-device: claim the single-console lock, then push an initial snapshot.
+    (async () => {
+      if (!window.Sync) return;
+      _sync = Sync.console('head-count');
+      let res = await _sync.claim(false);
+      if (res && !res.ok) { if (confirm('已有一个控制台在线，是否强制接管？')) res = await _sync.claim(true); }
+      if (res && res.ok) pushSnap({ scores: state.scores, roundNo: state.roundNo });
+    })();
   </script>
 </body>
 </html>

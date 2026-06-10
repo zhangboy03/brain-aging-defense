@@ -119,6 +119,7 @@
   <div class="offline" id="offline"></div>
 
   <script src="core.js"></script>
+  <script src="../sync.js"></script>
   <script>
     const svg = document.getElementById('stage');
     const waiting = document.getElementById('waiting');
@@ -182,6 +183,36 @@
       bc.onmessage = (e) => handle(e.data);
       bc.postMessage({ type: 'player-ready' });
     }
+
+    // Cross-device: subscribe to the relay. `state` is a declarative snapshot
+    // used to render a correct static view on (re)connect; `event` carries the
+    // imperative animation triggers, reusing the same handle() as bc.
+    if (window.Sync) {
+      Sync.display('head-count',
+        (snap) => {
+          if (!snap) return;
+          if (snap.scores) { numThu.textContent = snap.scores.thu; numPku.textContent = snap.scores.pku; }
+          if (snap.round) {
+            stage.setRound(snap.round);
+            waiting.style.display = 'none';
+            roundtag.textContent = `第 ${snap.roundNo || 1} 题 · ${snap.round.presetLabel}`;
+            if (snap.phase === 'reveal') stage.reveal();
+            else if (snap.phase === 'idle') { stage.reset(); waiting.style.display = 'flex'; }
+          } else {
+            stage.reset();
+            waiting.style.display = 'flex';
+            waiting.textContent = '等待主持人开始…';
+          }
+        },
+        (evt) => handle(evt)
+      );
+    }
+
+    // Keep iPad displays awake during a game (Safari 16.4+).
+    let _wake = null;
+    async function keepAwake() { try { _wake = await navigator.wakeLock.request('screen'); } catch (_) {} }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+    keepAwake();
 
     // fullscreen on click (host drags this window to projector and clicks)
     document.querySelector('.stagecard').addEventListener('dblclick', () => {
