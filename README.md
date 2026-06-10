@@ -109,6 +109,26 @@ npm audit --audit-level=moderate
 - Vite
 - GitHub Pages
 
+## 多屏实时同步（控制台 → 多大屏）
+
+部分游戏（蜂窝抢答 `hexagon`、数人头 `head-count`）是「主持人控制台 + 投屏大屏」结构。
+
+**目标场景**：用一台电脑作为**唯一控制台**，实时控制**两个同时在线的 iPad 大屏**
+（北大队 / 清华队各一台），让两屏画面**完全同步**——相同题目、对方是否抢答、
+自己是否答对，全部即时广播。
+
+**为什么旧版本跨设备不同步**：原同步只用 `localStorage` + `BroadcastChannel`，
+二者都只在「同一浏览器、同源、不同标签页」之间生效，状态从不上网，因此跨设备永远不同步。
+
+**方案**：新增一个 FastAPI 中转后端，部署到 [AI Builder Space](https://space.ai-builders.com)
+（底层 Koyeb 容器）。控制台把状态/事件 `POST` 给后端，大屏经 **SSE** 实时收推送并扇出到所有屏。
+游戏页面仍托管在 GitHub Pages，只多连一个后端。后端可达失败时自动回退到本地
+`localStorage`/`BroadcastChannel`（同设备仍可用）。
+
+详细设计见 [`docs/superpowers/specs/2026-06-10-cross-device-sync-design.md`](docs/superpowers/specs/2026-06-10-cross-device-sync-design.md)。
+
+后端相关文件：根目录 `Dockerfile`、`server/`（FastAPI 中转）、`public/sync.js`（共享客户端同步层）。
+
 ## 贡献方向
 
 - 继续细化剩余七种训练游戏。
