@@ -18,6 +18,7 @@ assert.match(gomokuCore, /const COLORS = \['red', 'yellow', 'blue', 'green', 'pi
 assert.match(gomokuAdmin, /repeat\(19, 1fr\)/, 'blind-gomoku admin board must render 19 intersections');
 assert.match(gomokuPlayer, /repeat\(19, 1fr\)/, 'blind-gomoku player board must render 19 intersections');
 assert.match(gomokuPlayer, /edge-left/, 'blind-gomoku player board must render line intersections, not boxed cells');
+assert.match(gomokuPlayer, /\.stone\.ghosty \{ opacity: 1; \}/, 'blind-gomoku confirmed local moves must render as solid stones');
 
 const headCore = read('public/head-count/core.js');
 const headAdmin = read('public/head-count/index.html');
