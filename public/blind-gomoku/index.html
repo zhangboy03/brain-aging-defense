@@ -335,7 +335,14 @@ for (const c of G.COLORS) {
   b.addEventListener('click', () => pickColor(c));
   paletteEl.appendChild(b);
 }
-function lighten(c) { return c === 'black' ? '#555' : c === 'white' ? '#fff' : '#fff8'; }
+function lighten(c) {
+  const hi = {
+    red: '#ee9a82', yellow: '#ffe08a', blue: '#94bfe4',
+    green: '#7cc89a', pink: '#f4b0cf', purple: '#bca1df',
+    black: '#555', white: '#fff',
+  };
+  return hi[c] || '#fff';
+}
 
 function show(id) {
   for (const s of document.querySelectorAll('.screen')) s.classList.remove('on');

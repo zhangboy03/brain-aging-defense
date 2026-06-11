@@ -19,6 +19,7 @@ assert.match(gomokuAdmin, /repeat\(19, 1fr\)/, 'blind-gomoku admin board must re
 assert.match(gomokuPlayer, /repeat\(19, 1fr\)/, 'blind-gomoku player board must render 19 intersections');
 assert.match(gomokuPlayer, /edge-left/, 'blind-gomoku player board must render line intersections, not boxed cells');
 assert.match(gomokuPlayer, /\.stone\.ghosty \{ opacity: 1; \}/, 'blind-gomoku confirmed local moves must render as solid stones');
+assert.doesNotMatch(gomokuPlayer, /'#fff8'|#fff8/, 'blind-gomoku confirmed stone gradients must not use transparent highlights');
 
 const headCore = read('public/head-count/core.js');
 const headAdmin = read('public/head-count/index.html');
