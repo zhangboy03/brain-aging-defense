@@ -20,6 +20,8 @@ assert.match(gomokuPlayer, /repeat\(19, 1fr\)/, 'blind-gomoku player board must 
 assert.match(gomokuPlayer, /edge-left/, 'blind-gomoku player board must render line intersections, not boxed cells');
 assert.match(gomokuPlayer, /\.stone\.ghosty \{ opacity: 1; \}/, 'blind-gomoku confirmed local moves must render as solid stones');
 assert.doesNotMatch(gomokuPlayer, /'#fff8'|#fff8/, 'blind-gomoku confirmed stone gradients must not use transparent highlights');
+assert.ok(gomokuPlayer.indexOf('id="result"') > gomokuPlayer.indexOf('<div id="side">'), 'blind-gomoku result UI must live in the side panel, not over the board');
+assert.doesNotMatch(gomokuPlayer, /#result \{[^}]*position:\s*absolute/, 'blind-gomoku result UI must not overlay the board');
 
 const headCore = read('public/head-count/core.js');
 const headAdmin = read('public/head-count/index.html');

@@ -148,14 +148,12 @@
 
   /* ---- 结果横幅 ---- */
   #result {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    background: rgba(12, 10, 7, .94); border: 1px solid #66603f;
-    border-radius: 18px; padding: 26px 48px; text-align: center; display: none; z-index: 20;
-    box-shadow: 0 0 60px rgba(0,0,0,.8);
+    display: none; border-color: #7a6a2f;
+    background: linear-gradient(180deg, rgba(39, 30, 16, .92), rgba(18, 13, 8, .9));
+    box-shadow: 0 0 28px rgba(255, 215, 80, .12);
   }
-  #result h2 { margin: 0 0 6px; font-size: 32px; letter-spacing: .1em; }
+  #result h2 { margin: 0 0 6px; font-size: clamp(20px, 3vmin, 28px); letter-spacing: .08em; }
   #result p { margin: 0; color: var(--dim); font-size: 15px; }
-  #result.dim { opacity: .25; }
 
   @media (orientation: portrait) {
     #scr-game { flex-direction: column; }
@@ -187,7 +185,6 @@
 <div id="scr-game" class="screen">
   <div id="board-wrap">
     <div id="board"></div>
-    <div id="result"><h2 id="result-title"></h2><p id="result-sub">轻点任意处查看棋盘 · 等待主持人开新一局</p></div>
   </div>
   <div id="side">
     <div class="panel">
@@ -195,6 +192,7 @@
       <div id="my-stone"><span class="chip" id="stone-chip"></span><span id="stone-label"></span></div>
     </div>
     <div class="panel"><div id="turn-tip"></div></div>
+    <div class="panel" id="result"><h2 id="result-title"></h2><p id="result-sub">棋盘已揭示，胜线已高亮。</p></div>
     <div class="panel">
       <div id="palette"></div>
     </div>
@@ -445,10 +443,9 @@ function render() {
       t.textContent = `${TEAM_NAME[team]}（${cur.winner === 'b' ? '黑' : '白'}）获胜！`;
     } else t.textContent = '主持人结束了本局';
   } else {
-    res.style.display = 'none'; res.classList.remove('dim');
+    res.style.display = 'none';
   }
 }
-document.getElementById('result').addEventListener('click', e => e.currentTarget.classList.toggle('dim'));
 
 // ---- Wake Lock（spec §6.5）----
 let wakeLock = null;
