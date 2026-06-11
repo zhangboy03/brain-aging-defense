@@ -33,9 +33,9 @@
     return true;
   }
 
-  function startGame(state, rand) {
+  function startGame(state, rand, blackTeam) {
     if (!state.joined.tsinghua || !state.joined.pku) return false;
-    const black = (rand || Math.random)() < 0.5 ? 'tsinghua' : 'pku';
+    const black = TEAMS.includes(blackTeam) ? blackTeam : ((rand || Math.random)() < 0.5 ? 'tsinghua' : 'pku');
     state.seats = { tsinghua: black === 'tsinghua' ? 'b' : 'w', pku: black === 'pku' ? 'b' : 'w' };
     state.gameId++;
     state.phase = 'playing';

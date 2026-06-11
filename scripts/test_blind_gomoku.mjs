@@ -33,6 +33,14 @@ test('T1 开局：seats 一黑一白, turn=b, phase=playing, gameId+1', () => {
   assert.equal(s.gameId, g0 + 1); assert.ok(s.v > v0);
 });
 
+test('T1b 开局可显式指定黑方', () => {
+  const s = G.initialState(1);
+  G.applyJoin(s, 'tsinghua', 'A'); G.applyJoin(s, 'pku', 'B');
+  assert.equal(G.startGame(s, () => 0.3, 'pku'), true);
+  assert.deepEqual(s.seats, { tsinghua: 'w', pku: 'b' });
+  assert.equal(s.turn, 'b');
+});
+
 test('T2 落子：board 记录 {s,c,n}，turn 翻转，v+1', () => {
   const s = freshGame(); const v0 = s.v;
   assert.equal(G.applyMove(s, { gameId: s.gameId, team: teamOf(s, 'b'), x: 7, y: 7, color: 'yellow' }), true);

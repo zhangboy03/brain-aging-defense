@@ -91,6 +91,11 @@
   button.act:disabled { opacity: .35; cursor: default; }
   button.act.primary { border-color: #7a6a2f; color: #ffd750; }
   button.act.danger { border-color: #7a3a34; color: #ef8d84; }
+  .field { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 14px; }
+  select {
+    border: 1px solid #4a4438; border-radius: 10px; background: #17140e;
+    color: var(--ink); min-height: 38px; padding: 8px 12px;
+  }
   label.toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--dim); }
   #log { flex: 1; overflow-y: auto; font-size: 13px; line-height: 1.8; font-variant-numeric: tabular-nums; }
   #log .entry b { color: #ffd750; font-weight: 600; }
@@ -114,6 +119,13 @@
         <span class="seat" id="seat-info" style="color:var(--dim)"></span>
       </div>
       <div class="btn-row">
+        <label class="field">黑方
+          <select id="sel-black">
+            <option value="random">随机</option>
+            <option value="tsinghua">清华</option>
+            <option value="pku">北大</option>
+          </select>
+        </label>
         <button class="act primary" id="btn-start" onclick="startGameClick()">开始新一局</button>
         <button class="act danger" id="btn-end" onclick="forceEndClick()">强制结束并揭示</button>
         <button class="act" id="btn-reset" onclick="resetClick()">重置回大厅</button>
@@ -244,7 +256,9 @@ function onEvent(e) {
 // ---- 控制台动作 ----
 function startGameClick() {
   if (readOnly || !auth) return;
-  if (G.startGame(auth, Math.random)) {
+  const blackChoice = document.getElementById('sel-black').value;
+  const blackTeam = G.TEAMS.includes(blackChoice) ? blackChoice : null;
+  if (G.startGame(auth, Math.random, blackTeam)) {
     document.getElementById('log').innerHTML = '';
     pushAuth(); render();
   }
@@ -309,6 +323,7 @@ function render() {
   document.getElementById('btn-end').disabled = readOnly || auth.phase !== 'playing';
   document.getElementById('btn-reset').disabled = readOnly;
   document.getElementById('chk-num').checked = !!auth.showNumbers;
+  document.getElementById('sel-black').disabled = readOnly || auth.phase === 'playing';
 
   const verdict = document.getElementById('verdict');
   if (auth.phase === 'finished') {
