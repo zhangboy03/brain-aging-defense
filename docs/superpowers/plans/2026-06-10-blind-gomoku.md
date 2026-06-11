@@ -446,6 +446,7 @@ function onState(s) {
 
 function adjudicateGhost(s) {   // §6: 以权威格内容裁决，不以"下一个 state"
   if (!ghost) return;
+  if (s.phase !== 'playing') { clearGhost(); return; } // 强制结束/重置（forceEnd 不翻 turn）
   if (s.gameId !== ghost.gameId) { clearGhost(); return; }
   const cell = s.board[ghost.x][ghost.y];
   if (cell) { clearGhost(); return; }                  // 已落子（无论谁的）→ 权威接管
@@ -453,10 +454,13 @@ function adjudicateGhost(s) {   // §6: 以权威格内容裁决，不以"下一
 }
 
 function chooseTeam(team) {
+  if (cur && cur.joined[team] && cur.joined[team] !== deviceId) return;  // 已被他机占用
   myTeam = team; sessionStorage.setItem('bg_team', team);
   push.pushEvent({ type: 'join', team, deviceId });
   render();
 }
+// render() 的 select-team 屏必须按 cur.joined 给已占队伍按钮置灰（spec §6.1，
+// 这是选队竞速时落败方不卡等待屏的关键防线）。
 
 function tapCell(x, y) {
   if (!cur || cur.phase !== 'playing' || ghost) return;
@@ -480,7 +484,11 @@ function clearGhost() { if (ghost) { clearTimeout(ghost.timer); ghost = null; } 
 渲染函数 `render()`：按 `cur.phase` 切换四屏；棋盘循环 15×15 画 cell（已落子画 `cell.c` 表面色圆片；`cur.revealed` 时画 `cell.s` 黑/白面 + 翻面动画类；`cur.winLine` 加脉冲类；`cur.showNumbers` 时叠加 `cell.n` 序号）；顶栏显示队名 + 我的真实执色（`cur.seats[myTeam]`）+ 回合提示；`pending` 画半透明预览 + 「再点一次确认」提示；`ghost` 画半透明子。Wake Lock：`navigator.wakeLock?.request('screen')`，`visibilitychange` 回前台时重新申请，失败 toast 提示设置自动锁定为永不。
 
 - [ ] **Step 1: 实现页面**（结构如上；CSS 按视觉要求；引 `<script src="../sync.js">` 和 `<script src="core.js">`）
-- [ ] **Step 2: 本地冒烟** — 起 `python3 -m http.server` + 本地 relay（`uvicorn server.app:app`），`?backend=http://localhost:8000` 打开页面：选队 → 状态出现在 relay snapshot（curl 验证 join 事件无人消费时页面停在等待屏，不报错）。
+- [ ] **Step 2: 本地冒烟** — 两个端口不能撞（http.server 与 uvicorn 默认都是 8000）：
+  `uvicorn server.app:app --port 8000` + `python3 -m http.server 5500`，打开
+  `http://localhost:5500/public/blind-gomoku/index.html?backend=http://localhost:8000`
+  （或 `npm run dev` 用 vite 把 public/ 映射到根，路径与生产一致）：选队 → join 事件
+  无人消费时页面停在等待屏，不报错。
 - [ ] **Step 3: Commit** — `git commit -m "feat(blind-gomoku): iPad player page"`
 
 ---
@@ -505,11 +513,15 @@ let lastMsgAt = Date.now();
 let es = null;
 
 async function boot() {
-  // 1) 锁：claim，busy 自动 force 一次（§7 覆盖刷新后 10s 旧锁窗口）
-  let r = await post('claim', {});
-  if (!r.ok) r = await post('claim', { force: true });
-  token = r.token;
-  setInterval(heartbeat, 4000);          // 自管心跳：检查响应（sync.js 的内置心跳不可检查）
+  // 1) 锁：claim，busy 自动 force 一次（§7 覆盖刷新后 10s 旧锁窗口）。
+  //    relay 瞬时不可达不能让 boot 中断：失败亮红横幅，3s 后整体重试。
+  try {
+    let r = await post('claim', {});
+    if (!r.ok) r = await post('claim', { force: true });
+    token = r.token;
+  } catch (_) { setBanner(true); setTimeout(boot, 3000); return; }
+  setBanner(false);
+  if (!hbTimer) hbTimer = setInterval(heartbeat, 4000);  // 自管心跳：检查响应（sync.js 的内置心跳不可检查）
   // 2) 恢复：有快照 → 沿用其 epoch 续 v；无快照 → 新 epoch（§5）
   const snap = await fetch(BACKEND + '/r/' + ROOM + '/snapshot').then(r => r.json()).catch(() => null);
   auth = (snap && typeof snap.epoch === 'number') ? snap : G.initialState(Date.now());
@@ -517,6 +529,7 @@ async function boot() {
   pushAuth();                            // 上线即广播一次当前真相
   render();
 }
+let hbTimer = null;
 
 async function post(path, body) {
   return fetch(BACKEND + '/r/' + ROOM + '/' + path, {
@@ -528,8 +541,16 @@ async function heartbeat() {
   if (readOnly) return;
   try {
     const r = await post('heartbeat', { token });
-    if (!r.ok) enterReadOnly();          // §3：失锁立即停引擎，防 split-brain
-  } catch (_) { /* 网络错不算失锁 */ }
+    if (!r.ok) {
+      // ok:false 区分两种情况：relay 重启锁蒸发（claim 不带 force 能成功）→ 换新
+      // token 继续当引擎并重推快照（spec §8「容器重启 → 控制台重推恢复」的自动路径）；
+      // 锁被另一控制台持有（claim 返回 busy）→ 真被接管，转只读。
+      const c = await post('claim', {});
+      if (c.ok) { token = c.token; pushAuth(); }
+      else enterReadOnly();              // §3：失锁立即停引擎，防 split-brain
+    }
+    setBanner(false);
+  } catch (_) { setBanner(true); /* 网络错不算失锁 */ }
 }
 function enterReadOnly() { readOnly = true; render(); }   // 横幅 + 「重新接管」按钮
 async function retakeover() {                              // §7 发现5：被关掉的接管者留下真空
@@ -547,9 +568,11 @@ async function pushAuth() {
   if (sending) { dirty = true; return; }
   sending = true;
   try {
-    await Sync.console(ROOM).pushState(auth);   // 失败走 catch；成功落快照
+    const res = await Sync.console(ROOM).pushState(auth);
+    if (!res || res.ok !== true) throw new Error('relay rejected');  // 4xx/5xx 的 JSON 响应不能当成功
+    setBanner(false);
   } catch (_) {
-    dirty = true;                                // 失败 → 稍后再发最新值
+    dirty = true; setBanner(true);               // 失败 → 红横幅 + 稍后再发最新值
     setTimeout(() => { sending = false; if (dirty) { dirty = false; pushAuth(); } }, 1000);
     return;
   }
@@ -560,7 +583,8 @@ async function pushAuth() {
 function connect() {
   if (es) es.close();
   es = Sync.display(ROOM, () => { lastMsgAt = Date.now(); }, onEvent);  // §3：忽略 state 回显
-  es.onopen = () => { lastMsgAt = Date.now(); if (!readOnly && auth) pushAuth(); };  // 重连重推
+  es.onopen = () => { lastMsgAt = Date.now(); setBanner(false); if (!readOnly && auth) pushAuth(); };  // 重连重推
+  es.onerror = () => setBanner(true);    // §8：「连接断开」红横幅（admin 也要有）
 }
 setInterval(() => {                                  // 控制台同样需要看门狗
   if (Date.now() - lastMsgAt > 90000) { lastMsgAt = Date.now(); connect(); }
@@ -608,6 +632,6 @@ boot();
 ### Task 5: 部署 + 线上验收
 
 - [ ] **Step 1: push main**（用户已授权部署）— `git push origin main`
-- [ ] **Step 2: 等 Pages workflow 完成** — `gh run watch`；然后 `curl -sI https://zhangboy03.github.io/brain-aging-defense/blind-gomoku/ | head -1` 与 `admin.html` 同理，预期 `HTTP/2 200`
+- [ ] **Step 2: 等 Pages workflow 完成** — `gh run watch $(gh run list --workflow deploy.yml -L1 --json databaseId -q '.[0].databaseId') --exit-status`（无参 watch 是交互式会卡住）；然后 `curl -sI https://zhangboy03.github.io/brain-aging-defense/blind-gomoku/ | head -1` 与 `admin.html` 同理，预期 `HTTP/2 200`
 - [ ] **Step 3: 线上烟测（C2/C6）** — relay `curl https://brain-aging-sync.ai-builders.space/healthz` 预期 `{"ok":true}`；浏览器三窗口指向线上 URL 跑一整局（20 手内含连五揭示），目测同步 ≤1s
 - [ ] **Step 4: 验收记录** — 把 C1–C6 核验结果写进最终汇报（C3 锁屏 30s 真机项留给用户 iPad 实测，标注）
