@@ -129,6 +129,19 @@ npm audit --audit-level=moderate
 
 后端相关文件：根目录 `Dockerfile`、`server/`（FastAPI 中转）、`public/sync.js`（共享客户端同步层）。
 
+## 盲五子棋（Blind Gomoku）
+
+复刻 Netflix《The Devil's Plan》的密室对决游戏：棋子底层是黑白五子棋，但表面被涂成
+8 种杂色——双方必须**靠记忆**记住每一手的真实归属，连五瞬间系统自动判定并全盘翻面揭示。
+表面颜色可自选：既能给自己做标记，也能骗对手（节目里 AI 就靠跟用同色棋子扰乱选手记忆）。
+
+- 棋手页（两台 iPad，进入后各选清华/北大）：`/blind-gomoku/`
+- 主持人控制台（上帝视角 + 开局/重置/强制揭示）：`/blind-gomoku/admin.html`
+- 架构：控制台是唯一权威引擎，iPad 的落子经 relay 事件转发、控制台校验后以完整快照广播；
+  断线重连/睡眠唤醒自动对齐。房间名 `blind-gomoku`。
+- 规则引擎单测：`node --test scripts/test_blind_gomoku.mjs`
+- 设计文档：[`docs/superpowers/specs/2026-06-10-blind-gomoku-design.md`](docs/superpowers/specs/2026-06-10-blind-gomoku-design.md)
+
 ## 贡献方向
 
 - 继续细化剩余七种训练游戏。
