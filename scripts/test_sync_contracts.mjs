@@ -18,6 +18,8 @@ assert.match(gomokuCore, /const COLORS = \['red', 'yellow', 'blue', 'green', 'pi
 assert.match(gomokuCore, /function startGame\(state, rand, blackTeam\)/, 'blind-gomoku rules must allow the console to assign black/white');
 assert.match(gomokuAdmin, /id="sel-black"/, 'blind-gomoku admin must expose a black-side selector');
 assert.match(gomokuAdmin, /G\.startGame\(auth, Math\.random, blackTeam\)/, 'blind-gomoku admin must pass the selected black side to the engine');
+assert.match(gomokuAdmin, /core\.js\?v=20260611-black-side/, 'blind-gomoku admin must cache-bust the rules engine when assigning sides');
+assert.match(gomokuPlayer, /core\.js\?v=20260611-black-side/, 'blind-gomoku player must cache-bust the shared rules engine');
 assert.match(gomokuAdmin, /repeat\(19, 1fr\)/, 'blind-gomoku admin board must render 19 intersections');
 assert.match(gomokuPlayer, /repeat\(19, 1fr\)/, 'blind-gomoku player board must render 19 intersections');
 assert.match(gomokuPlayer, /edge-left/, 'blind-gomoku player board must render line intersections, not boxed cells');
