@@ -4,8 +4,8 @@
  */
 (function (global) {
   'use strict';
-  const SIZE = 15;
-  const COLORS = ['red', 'yellow', 'blue', 'green', 'pink', 'purple', 'white', 'black'];
+  const SIZE = 19;
+  const COLORS = ['red', 'yellow', 'blue', 'green', 'pink', 'purple'];
   const TEAMS = ['tsinghua', 'pku'];
 
   function emptyBoard() {

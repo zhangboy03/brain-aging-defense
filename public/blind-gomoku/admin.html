@@ -6,8 +6,8 @@
 <title>盲五子棋 · 主持人控制台</title>
 <style>
   :root {
-    --grid-line: rgba(86, 168, 255, .45);
-    --board-bg: #0a1430;
+    --grid-line: rgba(64, 42, 24, .72);
+    --board-bg: #c99752;
     --ink: #e8e4da;
     --dim: #8d8678;
   }
@@ -15,7 +15,12 @@
   html, body { height: 100%; margin: 0; }
   body {
     font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
-    color: var(--ink); background: #0d0b08; overflow: hidden;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 110% 90% at 45% -10%, #3a2615 0%, transparent 54%),
+      radial-gradient(ellipse 90% 70% at 80% 110%, #1a2c23 0%, transparent 58%),
+      #120f0a;
+    overflow: hidden;
     display: flex; flex-direction: column;
   }
   #banner {
@@ -30,14 +35,31 @@
   main { flex: 1; display: flex; gap: 16px; padding: 16px; min-height: 0; }
 
   #board-wrap {
-    height: 100%; aspect-ratio: 1; background: var(--board-bg);
-    border: 2px solid rgba(86, 168, 255, .6); border-radius: 8px;
-    box-shadow: 0 0 26px rgba(64, 140, 255, .3); padding: 10px;
+    height: 100%; aspect-ratio: 1;
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255,255,255,.18), transparent 18%),
+      linear-gradient(135deg, #d7ac65 0%, var(--board-bg) 48%, #9b6630 100%);
+    border: 2px solid rgba(64, 42, 24, .8); border-radius: 6px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.58), inset 0 0 0 7px rgba(255,238,194,.14), inset 0 0 42px rgba(80,42,14,.34);
+    padding: 18px;
   }
-  #board { display: grid; grid-template-columns: repeat(15, 1fr); width: 100%; height: 100%; }
-  .cell { position: relative; border: 1px solid var(--grid-line); }
+  #board { display: grid; grid-template-columns: repeat(19, 1fr); width: 100%; height: 100%; }
+  .cell { position: relative; display: grid; place-items: center; }
+  .cell::before, .cell::after {
+    content: ''; position: absolute; background: var(--grid-line); pointer-events: none;
+  }
+  .cell::before { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
+  .cell::after { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
+  .cell.edge-left::before { left: 50%; }
+  .cell.edge-right::before { right: 50%; }
+  .cell.edge-top::after { top: 50%; }
+  .cell.edge-bottom::after { bottom: 50%; }
+  .star-dot {
+    position: absolute; width: 17%; height: 17%; border-radius: 50%;
+    background: rgba(49, 30, 16, .86); pointer-events: none;
+  }
   .stone {
-    position: absolute; inset: 9%; border-radius: 50%;
+    position: absolute; inset: 12%; border-radius: 50%; z-index: 1;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
@@ -47,14 +69,14 @@
   }
   .num {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    font-size: clamp(7px, 1.4vmin, 12px); font-weight: 700; pointer-events: none;
+    font-size: clamp(7px, 1.25vmin, 11px); font-weight: 700; pointer-events: none; z-index: 2;
     text-shadow: 0 0 3px #000, 0 0 2px #000; color: #fff;
   }
-  .cell.win::after { content: ''; position: absolute; inset: 2%; border: 2px solid #ffd750; border-radius: 50%; }
-  .cell.last::after { content: ''; position: absolute; inset: 2%; border: 2px dashed rgba(255,255,255,.6); border-radius: 50%; }
+  .cell.win .stone { box-shadow: 0 0 0 2px #ffd750, 0 0 14px rgba(255,215,80,.75); }
+  .cell.last .stone::after { content: ''; position: absolute; inset: 10%; border: 2px dashed rgba(255,255,255,.68); border-radius: 50%; }
 
   #side { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
-  .panel { background: rgba(18, 15, 11, .85); border: 1px solid #3c362b; border-radius: 12px; padding: 14px; }
+  .panel { background: rgba(19, 15, 10, .84); border: 1px solid #4b3c29; border-radius: 12px; padding: 14px; }
   h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: .12em; }
   #status-line { color: var(--dim); font-size: 13px; }
   .seat { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; font-size: 14px; }
@@ -113,11 +135,11 @@
 const G = window.BlindGomoku;
 const ROOM = 'blind-gomoku';
 const BACKEND = Sync.BACKEND;
-const SWATCH = { red:'#e23b3b', yellow:'#f2c11d', blue:'#2f7fe8', green:'#2faf5e',
+const SWATCH = { red:'#d83b2f', yellow:'#e8b83d', blue:'#2f77c8', green:'#2f985b',
                  pink:'#ef7fb3', purple:'#8e5bd6', white:'#f2f2f2', black:'#1b1b1b' };
 const TEAM_NAME = { tsinghua:'清华', pku:'北大' };
-const COLOR_NAME = { red:'红', yellow:'黄', blue:'蓝', green:'绿', pink:'粉', purple:'紫', white:'白', black:'黑' };
-const COLS = 'ABCDEFGHIJKLMNO';
+const COLOR_NAME = { red:'红', yellow:'黄', blue:'蓝', green:'绿', pink:'粉', purple:'紫' };
+const COLS = 'ABCDEFGHIJKLMNOPQRS';
 
 let auth = null;              // 权威 state（本控制台为引擎时非 null）
 let readOnly = false;
@@ -247,6 +269,15 @@ for (let y = 0; y < G.SIZE; y++) {
   for (let x = 0; x < G.SIZE; x++) {
     const d = document.createElement('div');
     d.className = 'cell';
+    if (x === 0) d.classList.add('edge-left');
+    if (x === G.SIZE - 1) d.classList.add('edge-right');
+    if (y === 0) d.classList.add('edge-top');
+    if (y === G.SIZE - 1) d.classList.add('edge-bottom');
+    if ((x === 3 || x === 9 || x === 15) && (y === 3 || y === 9 || y === 15)) {
+      const dot = document.createElement('span');
+      dot.className = 'star-dot';
+      d.appendChild(dot);
+    }
     boardEl.appendChild(d);
     cells.push({ x, y, el: d });
   }
@@ -294,7 +325,16 @@ function render() {
   for (const { x, y, el } of cells) {
     const cell = auth.board[x][y];
     el.className = 'cell';
-    el.innerHTML = '';
+    el.classList.toggle('edge-left', x === 0);
+    el.classList.toggle('edge-right', x === G.SIZE - 1);
+    el.classList.toggle('edge-top', y === 0);
+    el.classList.toggle('edge-bottom', y === G.SIZE - 1);
+    el.querySelectorAll('.stone,.num').forEach(n => n.remove());
+    if ((x === 3 || x === 9 || x === 15) && (y === 3 || y === 9 || y === 15) && !el.querySelector('.star-dot')) {
+      const dot = document.createElement('span');
+      dot.className = 'star-dot';
+      el.appendChild(dot);
+    }
     if (cell) {
       const st = document.createElement('div');
       st.className = 'stone';
