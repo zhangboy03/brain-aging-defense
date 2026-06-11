@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>盲五子棋 · 对战</title>
+<style>
+  :root {
+    --grid-line: rgba(86, 168, 255, .5);
+    --grid-glow: rgba(64, 140, 255, .35);
+    --board-bg: #0a1430;
+    --ink: #e8e4da;
+    --dim: #8d8678;
+    --accent: #56a8ff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 120% 90% at 50% -10%, #2a2317 0%, transparent 55%),
+      radial-gradient(ellipse 90% 70% at 50% 115%, #1c1812 0%, transparent 60%),
+      #0d0b08;
+    overflow: hidden;
+    user-select: none; -webkit-user-select: none;
+  }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: flex; }
+
+  /* ---- banner / toast ---- */
+  #banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    background: #b3261e; color: #fff; text-align: center;
+    padding: 8px; font-size: 15px; font-weight: 600; display: none;
+  }
+  #toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: rgba(20, 18, 14, .92); border: 1px solid #4a4438;
+    color: var(--ink); padding: 10px 22px; border-radius: 24px;
+    font-size: 15px; z-index: 60; opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+
+  /* ---- 选队屏 ---- */
+  #scr-select { flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
+  #scr-select h1 { font-size: 30px; font-weight: 700; letter-spacing: .18em; margin: 0; }
+  #scr-select p.sub { color: var(--dim); margin: 0; font-size: 15px; }
+  .team-row { display: flex; gap: 32px; }
+  .team-btn {
+    width: 220px; height: 150px; border-radius: 18px; border: 1px solid #4a4438;
+    background: linear-gradient(180deg, #1d1a14, #14110c);
+    color: var(--ink); font-size: 30px; font-weight: 700; letter-spacing: .25em;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer;
+  }
+  .team-btn small { font-size: 13px; font-weight: 400; letter-spacing: .05em; color: var(--dim); }
+  .team-btn:active { transform: scale(.97); }
+  .team-btn.taken { opacity: .35; pointer-events: none; }
+  .team-btn.tsinghua { border-color: #6b3fa0; }
+  .team-btn.pku { border-color: #a03f3f; }
+
+  /* ---- 等待屏 ---- */
+  #scr-wait { flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  #scr-wait .pulse { font-size: 22px; animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .35; } }
+  #wait-status { color: var(--dim); font-size: 15px; }
+  #wait-switch { margin-top: 8px; background: none; border: 1px solid #4a4438; color: var(--dim);
+    border-radius: 18px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
+
+  /* ---- 对战屏 ---- */
+  #scr-game { flex-direction: row; align-items: center; justify-content: center; gap: 3vmin; padding: 2vmin; }
+  #board-wrap {
+    position: relative;
+    width: min(92vmin, 100vh - 4vmin); aspect-ratio: 1;
+    background: var(--board-bg);
+    border: 2px solid rgba(86, 168, 255, .65);
+    border-radius: 8px;
+    box-shadow: 0 0 34px var(--grid-glow), inset 0 0 50px rgba(20, 50, 120, .55);
+    padding: 1.2%;
+  }
+  #board { display: grid; grid-template-columns: repeat(15, 1fr); width: 100%; height: 100%; }
+  .cell {
+    position: relative; border: 1px solid var(--grid-line);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stone {
+    width: 82%; height: 82%; border-radius: 50%;
+    box-shadow: inset -2px -3px 6px rgba(0,0,0,.45), inset 2px 3px 5px rgba(255,255,255,.28), 0 2px 4px rgba(0,0,0,.6);
+    transition: transform .45s;
+  }
+  .stone.flip { animation: flipIn .6s both; }
+  @keyframes flipIn { 0% { transform: rotateY(90deg); } 100% { transform: rotateY(0); } }
+  .stone.ghosty { opacity: .45; }
+  .stone.pending { opacity: .55; outline: 2px dashed rgba(255,255,255,.7); outline-offset: 2px; }
+  .cell.win .stone { animation: winPulse 1.1s ease-in-out infinite; }
+  @keyframes winPulse {
+    0%, 100% { box-shadow: 0 0 6px 2px rgba(255, 215, 80, .85), inset -2px -3px 6px rgba(0,0,0,.45); }
+    50%      { box-shadow: 0 0 18px 7px rgba(255, 215, 80, .95), inset -2px -3px 6px rgba(0,0,0,.45); }
+  }
+  .num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: clamp(8px, 1.6vmin, 13px); font-weight: 700; color: rgba(255,255,255,.92);
+    text-shadow: 0 0 3px #000, 0 0 3px #000; pointer-events: none;
+  }
+  .cell.last::after {
+    content: ''; position: absolute; inset: 8%; border: 2px solid rgba(255,255,255,.55);
+    border-radius: 50%; pointer-events: none;
+  }
+
+  /* ---- 侧栏 ---- */
+  #side { display: flex; flex-direction: column; gap: 2.2vmin; width: clamp(180px, 26vmin, 300px); }
+  .panel { background: rgba(18, 15, 11, .8); border: 1px solid #3c362b; border-radius: 14px; padding: 2vmin; }
+  #my-team { font-size: clamp(20px, 3.4vmin, 30px); font-weight: 700; letter-spacing: .12em; }
+  #my-stone { display: flex; align-items: center; gap: 10px; margin-top: 1vmin; color: var(--dim); font-size: clamp(13px, 2vmin, 16px); }
+  #my-stone .chip { width: 22px; height: 22px; border-radius: 50%;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,.4), inset 2px 2px 4px rgba(255,255,255,.25), 0 0 0 1px #555; }
+  #turn-tip { font-size: clamp(16px, 2.6vmin, 22px); font-weight: 600; }
+  #turn-tip.me { color: #ffd750; }
+  #turn-tip.them { color: var(--dim); }
+  #palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.6vmin; }
+  .swatch {
+    aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+    box-shadow: inset -2px -3px 5px rgba(0,0,0,.4), inset 2px 3px 5px rgba(255,255,255,.3);
+    min-width: 44px; min-height: 44px;
+  }
+  .swatch.sel { border-color: #ffd750; box-shadow: 0 0 10px rgba(255, 215, 80, .7), inset -2px -3px 5px rgba(0,0,0,.4); }
+  #hint { color: var(--dim); font-size: clamp(12px, 1.9vmin, 15px); line-height: 1.55; }
+
+  /* ---- 结果横幅 ---- */
+  #result {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    background: rgba(12, 10, 7, .94); border: 1px solid #66603f;
+    border-radius: 18px; padding: 26px 48px; text-align: center; display: none; z-index: 20;
+    box-shadow: 0 0 60px rgba(0,0,0,.8);
+  }
+  #result h2 { margin: 0 0 6px; font-size: 32px; letter-spacing: .1em; }
+  #result p { margin: 0; color: var(--dim); font-size: 15px; }
+  #result.dim { opacity: .25; }
+
+  @media (orientation: portrait) {
+    #scr-game { flex-direction: column; }
+    #board-wrap { width: min(92vw, 100vh - 220px); }
+    #side { width: min(92vw, 480px); flex-direction: row; flex-wrap: wrap; }
+    #side .panel { flex: 1 1 40%; }
+  }
+</style>
+</head>
+<body>
+<div id="banner">⚠️ 连接断开，正在自动重连…</div>
+<div id="toast"></div>
+
+<div id="scr-select" class="screen on">
+  <h1>盲 五 子 棋</h1>
+  <p class="sub">表面是杂色，底下是黑白。记住每一手，连五者胜。</p>
+  <div class="team-row">
+    <button class="team-btn tsinghua" id="btn-tsinghua" onclick="chooseTeam('tsinghua')">清华<small>TSINGHUA</small></button>
+    <button class="team-btn pku" id="btn-pku" onclick="chooseTeam('pku')">北大<small>PEKING</small></button>
+  </div>
+</div>
+
+<div id="scr-wait" class="screen">
+  <div class="pulse">等待主持人开局…</div>
+  <div id="wait-status"></div>
+  <button id="wait-switch" onclick="leaveTeam()">重新选队</button>
+</div>
+
+<div id="scr-game" class="screen">
+  <div id="board-wrap">
+    <div id="board"></div>
+    <div id="result"><h2 id="result-title"></h2><p id="result-sub">轻点任意处查看棋盘 · 等待主持人开新一局</p></div>
+  </div>
+  <div id="side">
+    <div class="panel">
+      <div id="my-team"></div>
+      <div id="my-stone"><span class="chip" id="stone-chip"></span><span id="stone-label"></span></div>
+    </div>
+    <div class="panel"><div id="turn-tip"></div></div>
+    <div class="panel">
+      <div id="palette"></div>
+    </div>
+    <div class="panel" id="hint">先选颜色，再点棋盘格预览，<b>再点一次同格确认落子</b>。表面颜色与黑白无关——可以做标记，也可以骗对手。</div>
+  </div>
+</div>
+
+<script src="../sync.js"></script>
+<script src="core.js"></script>
+<script>
+'use strict';
+const G = window.BlindGomoku;
+const ROOM = 'blind-gomoku';
+const SWATCH = { red:'#e23b3b', yellow:'#f2c11d', blue:'#2f7fe8', green:'#2faf5e',
+                 pink:'#ef7fb3', purple:'#8e5bd6', white:'#f2f2f2', black:'#1b1b1b' };
+const TEAM_NAME = { tsinghua:'清华', pku:'北大' };
+
+const deviceId = (() => {     // spec §5: localStorage，关标签重开仍是同一身份
+  let id = localStorage.getItem('bg_device');
+  if (!id) { id = Math.random().toString(36).slice(2, 10); localStorage.setItem('bg_device', id); }
+  return id;
+})();
+let myTeam = sessionStorage.getItem('bg_team') || null;
+let cur = null;               // 最新已接受 state
+let ghost = null;             // {x,y,color,gameId,timer} 已发送待裁决
+let pending = null;           // {x,y} 第一击预览
+let selColor = localStorage.getItem('bg_color') || 'red';
+let lastMsgAt = Date.now();
+let es = null;
+const push = Sync.console(ROOM);   // 只用 pushEvent，不 claim（不抢锁）
+
+// ---- 连接与看门狗 ----
+function connect() {
+  if (es) es.close();
+  es = Sync.display(ROOM, onState, () => { lastMsgAt = Date.now(); });  // event 仅喂看门狗
+  es.onopen = () => { lastMsgAt = Date.now(); setBanner(false); };
+  es.onerror = () => setBanner(true);
+}
+connect();
+setInterval(() => {            // 常开僵尸看门狗（spec §6.5）：90s 无消息即重建，误触发无害
+  if (Date.now() - lastMsgAt > 90000) { lastMsgAt = Date.now(); connect(); }
+}, 5000);
+
+function setBanner(on) { document.getElementById('banner').style.display = on ? 'block' : 'none'; }
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = 0; }, 2600);
+}
+
+// ---- state 接收 ----
+function onState(s) {
+  lastMsgAt = Date.now();
+  if (!G.isNewer(cur, s)) return;       // spec §5 epoch/v 接受规则
+  cur = s;
+  adjudicateGhost(s);
+  if (myTeam && s.joined[myTeam] === null) {           // spec §3 自愈 1：座位空才重发
+    push.pushEvent({ type: 'join', team: myTeam, deviceId });
+  }
+  if (myTeam && s.joined[myTeam] && s.joined[myTeam] !== deviceId) {
+    myTeam = null; sessionStorage.removeItem('bg_team'); // 被他机占用 → 回选队屏
+    toast('该队已被占用，请重新选队');
+  }
+  render();
+}
+
+function adjudicateGhost(s) {   // spec §6: 以权威格内容裁决，不以「下一个 state」
+  if (!ghost) return;
+  if (s.phase !== 'playing') { clearGhost(); return; } // 强制结束/重置（forceEnd 不翻 turn）
+  if (s.gameId !== ghost.gameId) { clearGhost(); return; }
+  const cell = s.board[ghost.x][ghost.y];
+  if (cell) { clearGhost(); return; }                  // 已落子（无论谁的）→ 权威接管
+  if (s.seats[myTeam] && s.turn !== s.seats[myTeam]) clearGhost();  // turn 翻转但格空 → 清除
+}
+function clearGhost() { if (ghost) { clearTimeout(ghost.timer); ghost = null; } }
+
+// ---- 操作 ----
+function chooseTeam(team) {
+  if (cur && cur.joined[team] && cur.joined[team] !== deviceId) return;  // 已被他机占用
+  myTeam = team; sessionStorage.setItem('bg_team', team);
+  push.pushEvent({ type: 'join', team, deviceId });
+  render();
+}
+function leaveTeam() {
+  myTeam = null; sessionStorage.removeItem('bg_team');
+  render();
+}
+function pickColor(c) {
+  selColor = c; localStorage.setItem('bg_color', c);
+  if (pending) pending = null;   // 换色重新预览
+  render();
+}
+function tapCell(x, y) {
+  if (!cur || cur.phase !== 'playing' || ghost) return;
+  const myStone = cur.seats[myTeam];
+  if (!myStone || cur.turn !== myStone || cur.board[x][y]) return;
+  if (pending && pending.x === x && pending.y === y) {   // 二次确认：再点同格 = 确认
+    pending = null;
+    ghost = { x, y, color: selColor, gameId: cur.gameId,
+      timer: setTimeout(() => { clearGhost(); toast('未送达，请重下'); render(); }, 5000) };  // spec §6 超时
+    push.pushEvent({ type: 'move', gameId: cur.gameId, team: myTeam, x, y, color: selColor });
+  } else {
+    pending = { x, y };        // 第一次点 = 预览（可点别处改）
+  }
+  render();
+}
+
+// ---- 渲染 ----
+const boardEl = document.getElementById('board');
+const cells = [];
+for (let y = 0; y < G.SIZE; y++) {
+  for (let x = 0; x < G.SIZE; x++) {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.addEventListener('click', tapCell.bind(null, x, y));
+    boardEl.appendChild(d);
+    cells.push({ x, y, el: d });
+  }
+}
+// 调色盘
+const paletteEl = document.getElementById('palette');
+for (const c of G.COLORS) {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.dataset.color = c;
+  b.style.background = `radial-gradient(circle at 32% 28%, ${lighten(c)}, ${SWATCH[c]})`;
+  b.addEventListener('click', () => pickColor(c));
+  paletteEl.appendChild(b);
+}
+function lighten(c) { return c === 'black' ? '#555' : c === 'white' ? '#fff' : '#fff8'; }
+
+function show(id) {
+  for (const s of document.querySelectorAll('.screen')) s.classList.remove('on');
+  document.getElementById(id).classList.add('on');
+}
+
+function render() {
+  // 屏幕路由
+  if (!myTeam) {
+    show('scr-select');
+    for (const t of G.TEAMS) {
+      const btn = document.getElementById('btn-' + t);
+      btn.classList.toggle('taken', !!(cur && cur.joined[t] && cur.joined[t] !== deviceId));
+    }
+    return;
+  }
+  if (!cur || cur.phase === 'lobby') {
+    show('scr-wait');
+    const st = document.getElementById('wait-status');
+    if (!cur) { st.textContent = '连接中…'; return; }
+    st.textContent = G.TEAMS.map(t => `${TEAM_NAME[t]}：${cur.joined[t] ? '已就位 ✓' : '未就位'}`).join('　');
+    return;
+  }
+  show('scr-game');
+
+  const myStone = cur.seats[myTeam];
+  document.getElementById('my-team').textContent = TEAM_NAME[myTeam] + '队';
+  const chip = document.getElementById('stone-chip');
+  if (myStone) {
+    chip.style.background = myStone === 'b'
+      ? 'radial-gradient(circle at 32% 28%, #4a4a4a, #0c0c0c)'
+      : 'radial-gradient(circle at 32% 28%, #ffffff, #cfcfcf)';
+    document.getElementById('stone-label').textContent =
+      '本局执' + (myStone === 'b' ? '黑' : '白') + '（只有你知道）';
+  }
+  const tip = document.getElementById('turn-tip');
+  if (cur.phase === 'playing') {
+    const mine = myStone && cur.turn === myStone;
+    tip.textContent = mine ? '● 轮到你了' : '○ 对方思考中…';
+    tip.className = mine ? 'me' : 'them';
+  } else {
+    tip.textContent = '对局结束'; tip.className = 'them';
+  }
+
+  // 调色盘选中态
+  for (const b of paletteEl.children) b.classList.toggle('sel', b.dataset.color === selColor);
+
+  // 棋盘
+  const showNum = cur.showNumbers || cur.revealed;
+  for (const { x, y, el } of cells) {
+    const cell = cur.board[x][y];
+    el.className = 'cell';
+    el.innerHTML = '';
+    if (cell) {
+      const st = document.createElement('div');
+      st.className = 'stone' + (cur.revealed ? ' flip' : '');
+      const face = cur.revealed ? (cell.s === 'b' ? 'black' : 'white') : cell.c;
+      st.style.background = `radial-gradient(circle at 32% 28%, ${lighten(face)}, ${SWATCH[face]})`;
+      el.appendChild(st);
+      if (showNum) {
+        const n = document.createElement('div');
+        n.className = 'num';
+        n.style.color = (face === 'white' || face === 'yellow') ? '#222' : 'rgba(255,255,255,.92)';
+        n.textContent = cell.n;
+        el.appendChild(n);
+      }
+      if (cur.lastMove && cur.lastMove.x === x && cur.lastMove.y === y && !cur.revealed) el.classList.add('last');
+      if (cur.winLine && cur.winLine.some(p => p[0] === x && p[1] === y)) el.classList.add('win');
+    } else if (ghost && ghost.x === x && ghost.y === y) {
+      const st = document.createElement('div');
+      st.className = 'stone ghosty';
+      st.style.background = `radial-gradient(circle at 32% 28%, ${lighten(ghost.color)}, ${SWATCH[ghost.color]})`;
+      el.appendChild(st);
+    } else if (pending && pending.x === x && pending.y === y && cur.phase === 'playing') {
+      const st = document.createElement('div');
+      st.className = 'stone pending';
+      st.style.background = `radial-gradient(circle at 32% 28%, ${lighten(selColor)}, ${SWATCH[selColor]})`;
+      el.appendChild(st);
+    }
+  }
+
+  // 结果
+  const res = document.getElementById('result');
+  if (cur.phase === 'finished') {
+    res.style.display = 'block';
+    const t = document.getElementById('result-title');
+    if (cur.winner === 'draw') t.textContent = '平局';
+    else if (cur.winner) {
+      const team = G.TEAMS.find(tm => cur.seats[tm] === cur.winner);
+      t.textContent = `${TEAM_NAME[team]}（${cur.winner === 'b' ? '黑' : '白'}）获胜！`;
+    } else t.textContent = '主持人结束了本局';
+  } else {
+    res.style.display = 'none'; res.classList.remove('dim');
+  }
+}
+document.getElementById('result').addEventListener('click', e => e.currentTarget.classList.toggle('dim'));
+
+// ---- Wake Lock（spec §6.5）----
+let wakeLock = null;
+async function requestWake() {
+  try { wakeLock = await navigator.wakeLock.request('screen'); }
+  catch (_) { /* 不支持/被拒：依赖用户关自动锁定 */ }
+}
+if ('wakeLock' in navigator) {
+  requestWake();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWake();
+  });
+} else {
+  setTimeout(() => toast('建议在设置中把「自动锁定」设为永不，防止息屏断线'), 1500);
+}
+render();
+</script>
+</body>
+</html>
