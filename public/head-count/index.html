@@ -290,7 +290,7 @@
     // so late-joining or reconnecting displays render the correct static view,
     // and emit imperative events for animation triggers.
     let _sync = null;
-    const _snap = { round: null, roundNo: state.roundNo, phase: 'idle', scores: state.scores };
+    const _snap = { round: null, roundNo: state.roundNo, phase: 'idle', scores: { ...state.scores }, verdicts: { thu: '', pku: '' }, startedAt: null };
     function pushSnap(patch) { Object.assign(_snap, patch); if (_sync) _sync.pushState(_snap); }
     function pushEvt(type, extra) { if (_sync) _sync.pushEvent(Object.assign({ type }, extra || {})); }
 
@@ -298,13 +298,18 @@
       if (bc) bc.postMessage(msg);            // same-device fallback (player listens on bc)
       if (!msg || !msg.type) return;
       switch (msg.type) {
-        case 'round':   pushSnap({ round: msg.round, roundNo: msg.roundNo, phase: 'ready' });
+        case 'round':   pushSnap({ round: msg.round, roundNo: msg.roundNo, phase: 'ready', verdicts: { thu: '', pku: '' }, startedAt: null });
                         pushEvt('round', { round: msg.round, roundNo: msg.roundNo }); break;
-        case 'start':   pushSnap({ phase: 'observe' }); pushEvt('start'); break;
+        case 'start': {
+                        const startedAt = msg.startedAt || Date.now();
+                        pushSnap({ phase: 'observe', startedAt });
+                        pushEvt('start', { startedAt }); break;
+                      }
         case 'reveal':  pushSnap({ phase: 'reveal' });  pushEvt('reveal'); break;
-        case 'reset':   pushSnap({ phase: 'idle', round: null }); pushEvt('reset'); break;
+        case 'reset':   pushSnap({ phase: 'idle', round: null, verdicts: { thu: '', pku: '' }, startedAt: null }); pushEvt('reset'); break;
         case 'scores':  pushSnap({ scores: { thu: msg.thu, pku: msg.pku }, roundNo: msg.roundNo }); break;
-        case 'verdict': pushEvt('verdict', { team: msg.team, value: msg.value }); break;
+        case 'verdict': pushSnap({ verdicts: { ..._snap.verdicts, [msg.team]: msg.value } });
+                        pushEvt('verdict', { team: msg.team, value: msg.value }); break;
         case 'ping':    pushEvt('ping'); break;
       }
     }
@@ -347,11 +352,11 @@
       $('aThu').value = ''; $('aPku').value = '';
     };
 
-    $('start').onclick = () => { if (!state.round) return; mini.startObserve(); post({ type: 'start' }); };
+    $('start').onclick = () => { if (!state.round) return; const startedAt = Date.now(); mini.startObserve(); post({ type: 'start', startedAt }); };
     $('replay').onclick = () => {
       if (!state.round) return;
       mini.setRound(state.round); post({ type: 'round', round: state.round, roundNo: state.roundNo });
-      setTimeout(() => { mini.startObserve(); post({ type: 'start' }); }, 80);
+      setTimeout(() => { const startedAt = Date.now(); mini.startObserve(); post({ type: 'start', startedAt }); }, 80);
     };
     $('reveal').onclick = () => {
       if (!state.round) return;

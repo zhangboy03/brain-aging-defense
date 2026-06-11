@@ -70,10 +70,11 @@
       function revealedLetters(s){const set=new Set();if(s.reveal)[...s.reveal].forEach(x=>set.add(x));return set}
       function render(s=load()){
         lastState=s;
-        if(s&&Number.isFinite(s.endAt)){s.timer=Math.max(0,Math.ceil((s.endAt-Date.now())/1000));}
+        const displayTimer=Number.isFinite(s.endAt)?Math.max(0,Math.ceil((s.endAt-Date.now())/1000)):s.timer;
+        if(Number.isFinite(s.endAt))s._timerDone=displayTimer<=0;
         document.body.className=(s.clean!==false?'clean ':'')+(s.phase||'idle');
         round.textContent=(s.round||0)+'/'+(s.total||10);
-        stage.textContent=phaseName(s.phase)+(Number.isFinite(s.timer)?' · '+s.timer:'');
+        stage.textContent=phaseName(s.phase)+(Number.isFinite(displayTimer)?' · '+displayTimer:'');
         const showTarget=s.phase&&s.phase!=='idle'&&s.phase!=='memorize'&&s.target!=null;
         target.textContent=showTarget?s.target:'';
         targetLabel.textContent=showTarget?'TARGET':'';
@@ -90,7 +91,7 @@
       if(window.Sync){Sync.display('hexagon',S=>render(S));}
       // Local countdown tick: if state carries endAt, re-render every 250ms so
       // the timer ticks smoothly without per-second network messages.
-      setInterval(()=>{if(lastState&&Number.isFinite(lastState.endAt)&&lastState.timer>0)render(lastState);},250);
+      setInterval(()=>{if(lastState&&Number.isFinite(lastState.endAt)&&!lastState._timerDone)render(lastState);},250);
       // Keep iPad displays awake during a game (Safari 16.4+).
       let _wake=null;
       async function keepAwake(){try{_wake=await navigator.wakeLock.request('screen');}catch(_){}}

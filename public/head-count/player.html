@@ -144,18 +144,67 @@
     const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('head-count') : null;
     const offline = document.getElementById('offline');
     if (!bc) offline.textContent = '此浏览器不支持频道同步';
+    let currentRoundKey = '';
+    let remoteStartedAt = null;
+
+    function snapshotRoundKey(snap) {
+      return (snap.roundNo || 1) + '|' + (snap.round && snap.round.seed || '');
+    }
+
+    function ensureRound(snap) {
+      const key = snapshotRoundKey(snap);
+      if (key !== currentRoundKey) {
+        stage.setRound(snap.round);
+        currentRoundKey = key;
+        remoteStartedAt = null;
+      }
+      waiting.style.display = 'none';
+      roundtag.textContent = `第 ${snap.roundNo || 1} 题 · ${snap.round.presetLabel}`;
+    }
+
+    function startFromSnapshot(snap) {
+      const startedAt = Number(snap.startedAt);
+      const offset = Number.isFinite(startedAt) ? Math.max(0, Date.now() - startedAt) : 0;
+      if (remoteStartedAt !== startedAt || !['observe', 'drop', 'events', 'settle'].includes(stage.phase)) {
+        remoteStartedAt = Number.isFinite(startedAt) ? startedAt : null;
+        stage.startObserve(offset);
+      }
+    }
+
+    function applySnapshot(snap) {
+      if (!snap) return;
+      if (snap.scores) { numThu.textContent = snap.scores.thu; numPku.textContent = snap.scores.pku; }
+      if (snap.verdicts) {
+        setVerdict(verdictThu, snap.verdicts.thu || '');
+        setVerdict(verdictPku, snap.verdicts.pku || '');
+      }
+      if (snap.round) {
+        ensureRound(snap);
+        if (snap.phase === 'observe') startFromSnapshot(snap);
+        else if (snap.phase === 'reveal' && stage.phase !== 'reveal') stage.reveal();
+        return;
+      }
+      currentRoundKey = '';
+      remoteStartedAt = null;
+      stage.reset();
+      waiting.style.display = 'flex';
+      waiting.textContent = '等待主持人开始…';
+    }
 
     function handle(msg) {
       if (!msg || !msg.type) return;
       switch (msg.type) {
         case 'round':
           stage.setRound(msg.round);
+          currentRoundKey = (msg.roundNo || 1) + '|' + (msg.round && msg.round.seed || '');
+          remoteStartedAt = null;
           waiting.style.display = 'none';
           roundtag.textContent = `第 ${msg.roundNo || 1} 题 · ${msg.round.presetLabel}`;
           setVerdict(verdictThu, ''); setVerdict(verdictPku, '');
           break;
         case 'start':
-          stage.startObserve();
+          remoteStartedAt = msg.startedAt || Date.now();
+          stage.startObserve(Math.max(0, Date.now() - remoteStartedAt));
           break;
         case 'reveal':
           stage.reveal();
@@ -189,21 +238,7 @@
     // imperative animation triggers, reusing the same handle() as bc.
     if (window.Sync) {
       Sync.display('head-count',
-        (snap) => {
-          if (!snap) return;
-          if (snap.scores) { numThu.textContent = snap.scores.thu; numPku.textContent = snap.scores.pku; }
-          if (snap.round) {
-            stage.setRound(snap.round);
-            waiting.style.display = 'none';
-            roundtag.textContent = `第 ${snap.roundNo || 1} 题 · ${snap.round.presetLabel}`;
-            if (snap.phase === 'reveal') stage.reveal();
-            else if (snap.phase === 'idle') { stage.reset(); waiting.style.display = 'flex'; }
-          } else {
-            stage.reset();
-            waiting.style.display = 'flex';
-            waiting.textContent = '等待主持人开始…';
-          }
-        },
+        (snap) => applySnapshot(snap),
         (evt) => handle(evt)
       );
     }

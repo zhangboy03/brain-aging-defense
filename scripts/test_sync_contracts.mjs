@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+
+const hexDisplay = read('public/hexagon/index.html');
+assert.match(hexDisplay, /Number\.isFinite\(lastState\.endAt\)&&\s*!lastState\._timerDone/, 'hexagon display countdown must tick from endAt, not a stale timer field');
+assert.doesNotMatch(hexDisplay, /lastState\.timer\s*>\s*0/, 'hexagon display tick must not depend on the incoming timer field');
+
+const headCore = read('public/head-count/core.js');
+const headAdmin = read('public/head-count/index.html');
+const headPlayer = read('public/head-count/player.html');
+assert.match(headCore, /function startObserve\(offsetMs\)/, 'head-count stage must support clock-aligned start offsets');
+assert.match(headAdmin, /startedAt/, 'head-count snapshot/event contract must carry startedAt');
+assert.match(headAdmin, /verdicts/, 'head-count snapshot must carry verdicts for reconnects');
+assert.match(headPlayer, /applySnapshot/, 'head-count player must apply declarative snapshots in one path');
+assert.match(headPlayer, /setVerdict\(verdictThu, snap\.verdicts\.thu/, 'head-count player must restore verdicts from state');
+assert.doesNotMatch(headPlayer, /stage\.round\s*!==\s*snap\.round/, 'head-count player must not compare round object identity across JSON snapshots');
+
+const cubeDisplay = read('public/cube-battle/index.html');
+assert.match(cubeDisplay, /class="axisCorner"/, 'cube-battle display must render a row/column axis corner');
+assert.match(cubeDisplay, /buildAxis/, 'cube-battle display must build visible row/column axes');
+
+console.log('sync contract checks passed');

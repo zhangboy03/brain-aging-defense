@@ -28,8 +28,14 @@
     .stageTag{font-size:clamp(14px,2vmin,24px);padding:.5em 1.1em;border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.34);letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
     .locked .stageTag{border-color:rgba(199,164,90,.65);color:#f4d38a}
     .boards{display:flex;align-items:center;justify-content:center;gap:3.2vw;min-height:0}
-    .panel{background:#efe9da;border-radius:14px;padding:.9vmin;box-shadow:0 26px 60px rgba(0,0,0,.6),0 0 0 1px rgba(220,196,139,.22);position:relative}
-    .grid{display:grid;gap:1px;background:#cfc6ae}
+    .panel{background:#efe9da;border-radius:14px;padding:.9vmin;box-shadow:0 26px 60px rgba(0,0,0,.6),0 0 0 1px rgba(220,196,139,.22);position:relative;display:grid;grid-template-columns:clamp(18px,2vmin,28px) auto;grid-template-rows:clamp(18px,2vmin,28px) auto;gap:1px}
+    .grid{display:grid;gap:1px;background:#cfc6ae;grid-column:2;grid-row:2}
+    .axisCorner{grid-column:1;grid-row:1;background:#d9cfb8;border-radius:4px 0 0 0}
+    .axisRow{grid-column:2;grid-row:1;display:grid;gap:1px}
+    .axisCol{grid-column:1;grid-row:2;display:grid;gap:1px}
+    .axisCell{display:grid;place-items:center;background:#d9cfb8;color:#5e5749;font-size:clamp(8px,1.05vmin,14px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+    .axisRow .axisCell{width:var(--cell);height:clamp(18px,2vmin,28px)}
+    .axisCol .axisCell{width:clamp(18px,2vmin,28px);height:var(--cell)}
     .cell{width:var(--cell);height:var(--cell);position:relative}
     .cell.diffHit{z-index:3}
     .cell.diffHit:after{content:"";position:absolute;inset:-7px;border:4px solid #14e08a;border-radius:8px;box-shadow:0 0 0 3px #0009,0 0 26px #14e08a;animation:ring 1s ease infinite}
@@ -55,8 +61,8 @@
       <div class="teamHud right" id="pkuHud"><span class="bar" style="background:var(--pku)"></span><span class="name" id="pkuName">北大</span><span class="score" id="pkuScore">0</span></div>
     </header>
     <section class="boards" id="boards">
-      <div class="panel"><div class="grid" id="gridL"></div></div>
-      <div class="panel"><div class="grid" id="gridR"></div></div>
+      <div class="panel"><div class="axisCorner"></div><div class="axisRow" id="axisTopL"></div><div class="axisCol" id="axisLeftL"></div><div class="grid" id="gridL"></div></div>
+      <div class="panel"><div class="axisCorner"></div><div class="axisRow" id="axisTopR"></div><div class="axisCol" id="axisLeftR"></div><div class="grid" id="gridR"></div></div>
     </section>
     <footer class="footer"><div class="message" id="message">打开主持人控制台，开始比赛。</div></footer>
   </main>
@@ -72,6 +78,7 @@
       const PAL=['#ffffff','#ffd500','#e3342f','#ff8a00','#2353e8','#2bc24e'];
       const $=id=>document.getElementById(id);
       const gridL=$('gridL'), gridR=$('gridR'), stage=$('stage'), msg=$('message'), winText=$('winText');
+      const axisTopL=$('axisTopL'), axisLeftL=$('axisLeftL'), axisTopR=$('axisTopR'), axisLeftR=$('axisLeftR');
       const thuName=$('thuName'), pkuName=$('pkuName'), thuScore=$('thuScore'), pkuScore=$('pkuScore');
       const thuHud=$('thuHud'), pkuHud=$('pkuHud');
       let lastGridKey='', lastS=null;
@@ -95,6 +102,13 @@
           el.appendChild(d);
         }
       }
+      function buildAxis(rowEl,colEl,s){
+        rowEl.style.gridTemplateColumns='repeat('+s.cols+',var(--cell))';
+        colEl.style.gridTemplateRows='repeat('+s.rows+',var(--cell))';
+        rowEl.innerHTML='';colEl.innerHTML='';
+        for(let c=1;c<=s.cols;c++){const d=document.createElement('div');d.className='axisCell';d.textContent=c;rowEl.appendChild(d)}
+        for(let r=1;r<=s.rows;r++){const d=document.createElement('div');d.className='axisCell';d.textContent=r;colEl.appendChild(d)}
+      }
       function render(s){
         s=s||lastS||load();lastS=s; // cache so resize/rotation re-renders don't lose relay-pushed state
         document.body.className=s.phase||'idle';
@@ -106,8 +120,8 @@
         pkuHud.classList.toggle('buzzed',s.team==='pku');
         const key=s.grid+'|'+s.diffIndex+'|'+s.diffColor+'|'+getComputedStyle(document.body).getPropertyValue('--cell');
         if(key!==lastGridKey){lastGridKey=key;
-          if(s.grid&&s.grid.length===s.rows*s.cols){buildGrid(gridL,s,false);buildGrid(gridR,s,true)}
-          else{gridL.innerHTML='';gridR.innerHTML=''}
+          if(s.grid&&s.grid.length===s.rows*s.cols){buildAxis(axisTopL,axisLeftL,s);buildAxis(axisTopR,axisLeftR,s);buildGrid(gridL,s,false);buildGrid(gridR,s,true)}
+          else{axisTopL.innerHTML='';axisLeftL.innerHTML='';axisTopR.innerHTML='';axisLeftR.innerHTML='';gridL.innerHTML='';gridR.innerHTML=''}
         }
         [gridL,gridR].forEach(g=>{[...g.children].forEach((c,i)=>c.classList.toggle('diffHit',!!s.reveal&&i===s.diffIndex))});
         msg.innerHTML=s.message||'';

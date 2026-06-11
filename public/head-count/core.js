@@ -372,10 +372,11 @@
       onPhase('ready');
     }
 
-    function startObserve() {
+    function startObserve(offsetMs) {
       if (!round) return;
+      const offset = Math.max(0, Number(offsetMs) || 0);
       phase = 'observe';
-      t0 = performance.now();
+      t0 = performance.now() - offset;
       observeText.textContent = '请记住人数。';
       showGroup(gObserve, true);
       showGroup(gSprites, true);
