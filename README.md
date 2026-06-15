@@ -142,6 +142,15 @@ npm audit --audit-level=moderate
 - 规则引擎单测：`node --test scripts/test_blind_gomoku.mjs`
 - 设计文档：[`docs/superpowers/specs/2026-06-10-blind-gomoku-design.md`](docs/superpowers/specs/2026-06-10-blind-gomoku-design.md)
 
+### 随机色版（Blind Gomoku v2）
+
+旧版完整保留。新版去掉了选手自选颜色：每落一子，主持人控制台权威地**随机指定**一个表面色，
+选手无法用固定颜色给自己做标记，必须真正**记住自己每一手的颜色**才能认出连线——记忆难度更高。
+
+- 棋手页：`/blind-gomoku-v2/`，主持人控制台：`/blind-gomoku-v2/admin.html`
+- 与旧版相互独立：房间名 `blind-gomoku-v2`，规则引擎（`core.js`）与旧版一致，仅落子时由控制台
+  在 `onEvent` 里随机指定 `color`，选手端落子事件不再携带颜色，预览显示为中性灰「?」。
+
 ## 贡献方向
 
 - 继续细化剩余七种训练游戏。

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盲五子棋 · 主持人控制台（随机色版）</title>
+<style>
+  :root {
+    --grid-line: rgba(64, 42, 24, .72);
+    --board-bg: #c99752;
+    --ink: #e8e4da;
+    --dim: #8d8678;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 110% 90% at 45% -10%, #3a2615 0%, transparent 54%),
+      radial-gradient(ellipse 90% 70% at 80% 110%, #1a2c23 0%, transparent 58%),
+      #120f0a;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  #banner {
+    background: #b3261e; color: #fff; text-align: center;
+    padding: 7px; font-size: 14px; font-weight: 600; display: none;
+  }
+  #takeover {
+    background: #7a5b00; color: #fff; text-align: center;
+    padding: 7px; font-size: 14px; font-weight: 600; display: none;
+  }
+  #takeover button { margin-left: 12px; }
+  main { flex: 1; display: flex; gap: 16px; padding: 16px; min-height: 0; }
+
+  #board-wrap {
+    height: 100%; aspect-ratio: 1;
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255,255,255,.18), transparent 18%),
+      linear-gradient(135deg, #d7ac65 0%, var(--board-bg) 48%, #9b6630 100%);
+    border: 2px solid rgba(64, 42, 24, .8); border-radius: 6px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.58), inset 0 0 0 7px rgba(255,238,194,.14), inset 0 0 42px rgba(80,42,14,.34);
+    padding: 18px;
+  }
+  #board { display: grid; grid-template-columns: repeat(19, 1fr); width: 100%; height: 100%; }
+  .cell { position: relative; display: grid; place-items: center; }
+  .cell::before, .cell::after {
+    content: ''; position: absolute; background: var(--grid-line); pointer-events: none;
+  }
+  .cell::before { left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); }
+  .cell::after { top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); }
+  .cell.edge-left::before { left: 50%; }
+  .cell.edge-right::before { right: 50%; }
+  .cell.edge-top::after { top: 50%; }
+  .cell.edge-bottom::after { bottom: 50%; }
+  .star-dot {
+    position: absolute; width: 17%; height: 17%; border-radius: 50%;
+    background: rgba(49, 30, 16, .86); pointer-events: none;
+  }
+  .stone {
+    position: absolute; inset: 12%; border-radius: 50%; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .stone .true {  /* 内圈真实黑白 */
+    width: 58%; height: 58%; border-radius: 50%;
+    box-shadow: inset -1px -2px 3px rgba(0,0,0,.4), inset 1px 2px 3px rgba(255,255,255,.3);
+  }
+  .num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: clamp(7px, 1.25vmin, 11px); font-weight: 700; pointer-events: none; z-index: 2;
+    text-shadow: 0 0 3px #000, 0 0 2px #000; color: #fff;
+  }
+  .cell.win .stone { box-shadow: 0 0 0 2px #ffd750, 0 0 14px rgba(255,215,80,.75); }
+  .cell.last .stone::after { content: ''; position: absolute; inset: 10%; border: 2px dashed rgba(255,255,255,.68); border-radius: 50%; }
+
+  #side { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
+  .panel { background: rgba(19, 15, 10, .84); border: 1px solid #4b3c29; border-radius: 12px; padding: 14px; }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: .12em; }
+  #status-line { color: var(--dim); font-size: 13px; }
+  .seat { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
+  .dot.on { background: #3fae5a; box-shadow: 0 0 6px #3fae5a; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  button.act {
+    padding: 10px 18px; border-radius: 10px; border: 1px solid #4a4438;
+    background: linear-gradient(180deg, #262219, #17140e); color: var(--ink);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.act:disabled { opacity: .35; cursor: default; }
+  button.act.primary { border-color: #7a6a2f; color: #ffd750; }
+  button.act.danger { border-color: #7a3a34; color: #ef8d84; }
+  .field { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 14px; }
+  select {
+    border: 1px solid #4a4438; border-radius: 10px; background: #17140e;
+    color: var(--ink); min-height: 38px; padding: 8px 12px;
+  }
+  label.toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--dim); }
+  #log { flex: 1; overflow-y: auto; font-size: 13px; line-height: 1.8; font-variant-numeric: tabular-nums; }
+  #log .entry b { color: #ffd750; font-weight: 600; }
+  #verdict { font-size: 16px; font-weight: 700; color: #ffd750; min-height: 22px; }
+</style>
+</head>
+<body>
+<div id="banner">⚠️ 连接断开 / 推送失败，正在自动重试…</div>
+<div id="takeover">已被另一控制台接管，本台只读<button class="act" onclick="retakeover()">重新接管</button></div>
+<main>
+  <div id="board-wrap"><div id="board"></div></div>
+  <div id="side">
+    <div class="panel">
+      <h1>盲五子棋 · 主持人控制台（随机色版）</h1>
+      <div id="status-line">上帝视角：外环 = 系统随机指定的表面色，内圈 = 真实黑白</div>
+    </div>
+    <div class="panel">
+      <div style="margin-bottom:10px">
+        <span class="seat"><span class="dot" id="dot-tsinghua"></span>清华</span>
+        <span class="seat"><span class="dot" id="dot-pku"></span>北大</span>
+        <span class="seat" id="seat-info" style="color:var(--dim)"></span>
+      </div>
+      <div class="btn-row">
+        <label class="field">黑方
+          <select id="sel-black">
+            <option value="random">随机</option>
+            <option value="tsinghua">清华</option>
+            <option value="pku">北大</option>
+          </select>
+        </label>
+        <button class="act primary" id="btn-start" onclick="startGameClick()">开始新一局</button>
+        <button class="act danger" id="btn-end" onclick="forceEndClick()">强制结束并揭示</button>
+        <button class="act" id="btn-reset" onclick="resetClick()">重置回大厅</button>
+        <label class="toggle"><input type="checkbox" id="chk-num" onchange="toggleNumbers(this.checked)">给选手显示序号</label>
+      </div>
+      <div id="verdict" style="margin-top:10px"></div>
+    </div>
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;min-height:0">
+      <div style="color:var(--dim);font-size:13px;margin-bottom:6px">着法记录</div>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<script src="../sync.js"></script>
+<script src="core.js?v=20260615-random-color"></script>
+<script>
+'use strict';
+const G = window.BlindGomoku;
+const ROOM = 'blind-gomoku-v2';
+const BACKEND = Sync.BACKEND;
+const SWATCH = { red:'#d83b2f', yellow:'#e8b83d', blue:'#2f77c8', green:'#2f985b',
+                 pink:'#ef7fb3', purple:'#8e5bd6', white:'#f2f2f2', black:'#1b1b1b' };
+const TEAM_NAME = { tsinghua:'清华', pku:'北大' };
+const COLOR_NAME = { red:'红', yellow:'黄', blue:'蓝', green:'绿', pink:'粉', purple:'紫' };
+const COLS = 'ABCDEFGHIJKLMNOPQRS';
+
+let auth = null;              // 权威 state（本控制台为引擎时非 null）
+let readOnly = false;
+let token = null;
+let hbTimer = null;
+let lastMsgAt = Date.now();
+let es = null;
+const sync = Sync.console(ROOM);
+
+function setBanner(on) { document.getElementById('banner').style.display = on ? 'block' : 'none'; }
+
+async function post(path, body) {
+  return fetch(BACKEND + '/r/' + ROOM + '/' + path, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }).then(r => r.json());
+}
+
+async function boot() {
+  // 锁：claim，busy 自动 force 一次（spec §7，覆盖刷新后 10s 旧锁窗口）。
+  // relay 瞬时不可达不能让 boot 中断：失败亮红横幅，3s 后整体重试。
+  try {
+    let r = await post('claim', {});
+    if (!r.ok) r = await post('claim', { force: true });
+    token = r.token;
+  } catch (_) { setBanner(true); setTimeout(boot, 3000); return; }
+  setBanner(false);
+  if (!hbTimer) hbTimer = setInterval(heartbeat, 4000);  // 自管心跳：检查响应
+  // 恢复：有快照 → 沿用其 epoch 续 v；无快照 → 新 epoch（spec §5）
+  const snap = await fetch(BACKEND + '/r/' + ROOM + '/snapshot').then(r => r.json()).catch(() => null);
+  auth = (snap && typeof snap.epoch === 'number') ? snap : G.initialState(Date.now());
+  connect();
+  pushAuth();                            // 上线即广播一次当前真相
+  render();
+}
+
+async function heartbeat() {
+  if (readOnly) return;
+  try {
+    const r = await post('heartbeat', { token });
+    if (!r.ok) {
+      // 区分两种 ok:false：relay 重启锁蒸发（无 force 的 claim 能成功）→ 换 token
+      // 继续当引擎并重推快照；锁被另一控制台持有（busy）→ 真被接管，转只读。
+      const c = await post('claim', {});
+      if (c.ok) { token = c.token; pushAuth(); }
+      else enterReadOnly();
+    }
+    setBanner(false);
+  } catch (_) { setBanner(true); /* 网络错不算失锁 */ }
+}
+function enterReadOnly() { readOnly = true; render(); }
+async function retakeover() {
+  try {
+    const r = await post('claim', { force: true });
+    token = r.token;
+    const snap = await fetch(BACKEND + '/r/' + ROOM + '/snapshot').then(r => r.json()).catch(() => null);
+    if (snap && G.isNewer(auth, snap)) auth = snap;   // 接管前对齐对方可能推过的进度
+    readOnly = false; pushAuth(); render();
+  } catch (_) { setBanner(true); }
+}
+
+// 单飞串行 sender（spec §3 自愈 2）：永远发当前最新权威 state，绝不重试旧 payload
+let sending = false, dirty = false;
+async function pushAuth() {
+  if (readOnly) return;
+  if (sending) { dirty = true; return; }
+  sending = true;
+  try {
+    const res = await sync.pushState(auth);
+    if (!res || res.ok !== true) throw new Error('relay rejected');  // 4xx/5xx 的 JSON 不当成功
+    setBanner(false);
+  } catch (_) {
+    dirty = true; setBanner(true);
+    setTimeout(() => { sending = false; if (dirty) { dirty = false; pushAuth(); } }, 1000);
+    return;
+  }
+  sending = false;
+  if (dirty) { dirty = false; pushAuth(); }
+}
+
+function connect() {
+  if (es) es.close();
+  es = Sync.display(ROOM, () => { lastMsgAt = Date.now(); }, onEvent);  // 忽略 state 回显（spec §3）
+  es.onopen = () => { lastMsgAt = Date.now(); setBanner(false); if (!readOnly && auth) pushAuth(); };  // 重连重推
+  es.onerror = () => setBanner(true);
+}
+setInterval(() => {                      // 控制台同样需要僵尸看门狗
+  if (Date.now() - lastMsgAt > 90000) { lastMsgAt = Date.now(); connect(); }
+}, 5000);
+
+function onEvent(e) {
+  lastMsgAt = Date.now();
+  if (readOnly || !auth || !e) return;
+  let changed = false;
+  if (e.type === 'join') changed = G.applyJoin(auth, e.team, e.deviceId);
+  else if (e.type === 'move') {
+    // 随机色版：表面色由主持人权威随机指定，忽略选手上报的任何颜色
+    e.color = G.COLORS[Math.floor(Math.random() * G.COLORS.length)];
+    changed = G.applyMove(auth, e);
+    if (changed) logMove(e);
+  }
+  if (changed) { pushAuth(); render(); }
+}
+
+// ---- 控制台动作 ----
+function startGameClick() {
+  if (readOnly || !auth) return;
+  const blackChoice = document.getElementById('sel-black').value;
+  const blackTeam = G.TEAMS.includes(blackChoice) ? blackChoice : null;
+  if (G.startGame(auth, Math.random, blackTeam)) {
+    document.getElementById('log').innerHTML = '';
+    pushAuth(); render();
+  }
+}
+function resetClick() {
+  if (readOnly || !auth) return;
+  if (confirm('重置将清空棋盘和就位状态，确定？') && G.resetLobby(auth)) { pushAuth(); render(); }
+}
+function forceEndClick() {
+  if (readOnly || !auth) return;
+  if (confirm('强制结束并揭示全盘？') && G.forceEnd(auth)) { pushAuth(); render(); }
+}
+function toggleNumbers(on) {
+  if (readOnly || !auth) return;
+  auth.showNumbers = on; auth.v++; pushAuth(); render();
+}
+
+// ---- 渲染 ----
+const boardEl = document.getElementById('board');
+const cells = [];
+for (let y = 0; y < G.SIZE; y++) {
+  for (let x = 0; x < G.SIZE; x++) {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    if (x === 0) d.classList.add('edge-left');
+    if (x === G.SIZE - 1) d.classList.add('edge-right');
+    if (y === 0) d.classList.add('edge-top');
+    if (y === G.SIZE - 1) d.classList.add('edge-bottom');
+    if ((x === 3 || x === 9 || x === 15) && (y === 3 || y === 9 || y === 15)) {
+      const dot = document.createElement('span');
+      dot.className = 'star-dot';
+      d.appendChild(dot);
+    }
+    boardEl.appendChild(d);
+    cells.push({ x, y, el: d });
+  }
+}
+
+function logMove(e) {
+  const stone = auth.seats[e.team];
+  const cellRef = COLS[e.x] + (e.y + 1);
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = `<b>第${auth.moveCount}手</b> ${TEAM_NAME[e.team]}(${stone === 'b' ? '黑' : '白'}) ${cellRef} 表面${COLOR_NAME[e.color] || e.color}`;
+  const log = document.getElementById('log');
+  log.prepend(div);
+}
+
+function render() {
+  document.getElementById('takeover').style.display = readOnly ? 'block' : 'none';
+  if (!auth) return;
+  for (const t of G.TEAMS) {
+    document.getElementById('dot-' + t).classList.toggle('on', !!auth.joined[t]);
+  }
+  const seatInfo = document.getElementById('seat-info');
+  if (auth.phase !== 'lobby' && auth.seats.tsinghua) {
+    seatInfo.textContent = `清华执${auth.seats.tsinghua === 'b' ? '黑' : '白'} / 北大执${auth.seats.pku === 'b' ? '黑' : '白'}（第 ${auth.gameId} 局）`;
+  } else seatInfo.textContent = '';
+
+  document.getElementById('btn-start').disabled =
+    readOnly || !(auth.joined.tsinghua && auth.joined.pku) || auth.phase === 'playing';
+  document.getElementById('btn-end').disabled = readOnly || auth.phase !== 'playing';
+  document.getElementById('btn-reset').disabled = readOnly;
+  document.getElementById('chk-num').checked = !!auth.showNumbers;
+  document.getElementById('sel-black').disabled = readOnly || auth.phase === 'playing';
+
+  const verdict = document.getElementById('verdict');
+  if (auth.phase === 'finished') {
+    if (auth.winner === 'draw') verdict.textContent = '平局（棋盘下满）';
+    else if (auth.winner) {
+      const team = G.TEAMS.find(t => auth.seats[t] === auth.winner);
+      verdict.textContent = `${TEAM_NAME[team]}（${auth.winner === 'b' ? '黑' : '白'}）连五获胜！`;
+    } else verdict.textContent = '已强制结束（无胜者）';
+  } else if (auth.phase === 'playing') {
+    const team = G.TEAMS.find(t => auth.seats[t] === auth.turn);
+    verdict.textContent = `第 ${auth.moveCount + 1} 手，轮到 ${TEAM_NAME[team]}（${auth.turn === 'b' ? '黑' : '白'}）`;
+  } else verdict.textContent = '';
+
+  for (const { x, y, el } of cells) {
+    const cell = auth.board[x][y];
+    el.className = 'cell';
+    el.classList.toggle('edge-left', x === 0);
+    el.classList.toggle('edge-right', x === G.SIZE - 1);
+    el.classList.toggle('edge-top', y === 0);
+    el.classList.toggle('edge-bottom', y === G.SIZE - 1);
+    el.querySelectorAll('.stone,.num').forEach(n => n.remove());
+    if ((x === 3 || x === 9 || x === 15) && (y === 3 || y === 9 || y === 15) && !el.querySelector('.star-dot')) {
+      const dot = document.createElement('span');
+      dot.className = 'star-dot';
+      el.appendChild(dot);
+    }
+    if (cell) {
+      const st = document.createElement('div');
+      st.className = 'stone';
+      st.style.background = SWATCH[cell.c];           // 外环：表面色
+      const tr = document.createElement('div');
+      tr.className = 'true';                          // 内圈：真实黑白
+      tr.style.background = cell.s === 'b'
+        ? 'radial-gradient(circle at 32% 28%, #4a4a4a, #0b0b0b)'
+        : 'radial-gradient(circle at 32% 28%, #ffffff, #cfcfcf)';
+      st.appendChild(tr);
+      el.appendChild(st);
+      const n = document.createElement('div');
+      n.className = 'num'; n.textContent = cell.n;
+      el.appendChild(n);
+      if (auth.lastMove && auth.lastMove.x === x && auth.lastMove.y === y) el.classList.add('last');
+      if (auth.winLine && auth.winLine.some(p => p[0] === x && p[1] === y)) el.classList.add('win');
+    }
+  }
+}
+boot();
+</script>
+</body>
+</html>
