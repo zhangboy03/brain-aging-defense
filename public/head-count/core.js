@@ -89,21 +89,35 @@
     }
 
     // schedule: events on DIFFERENT lanes (door vs chimney) may overlap for
-    // liveliness, but events on the SAME lane never overlap — the previous
-    // person fully clears and an empty beat passes before the next appears at
-    // that spot. Keeps in/out unambiguous when two events hit the same place
-    // back-to-back.
+    // liveliness, but the animation must never contradict the head count. Three
+    // rules, in order of priority:
+    //   1. SAME lane never overlaps — the previous person fully clears plus an
+    //      empty beat before the next appears at that spot (keeps in/out
+    //      unambiguous when two events hit the same place back-to-back).
+    //   2. ORDER is preserved — every event starts no earlier than the one
+    //      before it, so what the audience sees matches the event sequence.
+    //      Without this a chimney event on an idle lane could be scheduled
+    //      ahead of an earlier, still-pending door event and play out of order.
+    //   3. NO IMPOSSIBLE EXITS — an "out" never emerges until every preceding
+    //      "in" has finished entering, so the animation can't show a person
+    //      leaving a house it hasn't yet shown them entering (which the viewer
+    //      reads as a negative head count).
     const laneOf = (ev) => (ev.via === 'chimney' ? 'chimney' : 'door');
     const beat = Math.round(p.moveMs * 0.3);  // empty gap after a lane clears
     const laneFree = {};                       // lane -> earliest next start (ms)
     let cursor = 0;
     let span = 0;
+    let prevStart = 0;                          // rule 2: monotonic ordering
+    let lastInEnd = 0;                          // rule 3: latest "in" completion
     for (const ev of events) {
       const lane = laneOf(ev);
-      const startAt = Math.max(cursor, laneFree[lane] || 0);
+      let startAt = Math.max(cursor, laneFree[lane] || 0, prevStart);
+      if (ev.type === 'out') startAt = Math.max(startAt, lastInEnd);
       ev.startAt = startAt;         // ms, relative to start of events phase
       ev.dur = p.moveMs;
       laneFree[lane] = startAt + p.moveMs + beat;
+      prevStart = startAt;
+      if (ev.type === 'in') lastInEnd = Math.max(lastInEnd, startAt + p.moveMs);
       cursor += p.gapMs;            // nominal cadence for the next event
       span = Math.max(span, startAt + p.moveMs);
     }
@@ -571,4 +585,4 @@
     generateRound, describeEvent, makeSeedString,
     HeadCountStage,
   };
-})(typeof window !== 'undefined' ? window : this);
+})(typeof window !== 'undefined' ? window : globalThis);
