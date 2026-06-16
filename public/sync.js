@@ -11,13 +11,21 @@
  *   Sync.console(room)                     -> { claim, pushState, pushEvent }
  */
 (function () {
-  // Default production relay; overridable for local testing or re-pointing
-  // without editing this file: ?backend=… , window.SYNC_BACKEND, or
-  // localStorage 'sync_backend'.
-  var DEFAULT_BACKEND = "https://brain-aging-sync.ai-builders.space";
+  // The relay URL is intentionally NOT hardcoded here: this repo is public and
+  // the relay runs on a private host. Point a device at the relay by opening any
+  // game page once with ?backend=https://your-relay — it is persisted to
+  // localStorage and reused on every later visit (no need to re-add the param).
+  // window.SYNC_BACKEND and localStorage 'sync_backend' also work.
+  var DEFAULT_BACKEND = "";
+  var fromQuery = null;
+  try {
+    fromQuery = new URLSearchParams(location.search).get("backend");
+    // Persist an explicit ?backend so it only has to be supplied once per device.
+    if (fromQuery) localStorage.setItem("sync_backend", fromQuery);
+  } catch (_) {}
   var override = null;
   try {
-    override = new URLSearchParams(location.search).get("backend") ||
+    override = fromQuery ||
       (typeof window !== "undefined" && window.SYNC_BACKEND) ||
       localStorage.getItem("sync_backend");
   } catch (_) {}
