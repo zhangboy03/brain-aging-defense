@@ -151,6 +151,17 @@ npm audit --audit-level=moderate
 - 与旧版相互独立：房间名 `blind-gomoku-v2`，规则引擎（`core.js`）与旧版一致，仅落子时由控制台
   在 `onEvent` 里随机指定 `color`，选手端落子事件不再携带颜色，预览显示为中性灰「?」。
 
+## 挑战拼图（Challenge Puzzle）
+
+清华 / 北大 1v1 同步拼图挑战。主持人在电脑控制台出题并启动统一倒计时，两台 iPad 显示完全相同
+的题面、拼图块、倒计时和结果。选手用实物拼图作答；时间结束后，主持人录入双方完成的最高 Step，
+Step 高者赢，同 Step 判平局。
+
+- iPad 同步页：`/challenge-puzzle/index.html`
+- 主持人控制台：`/challenge-puzzle/admin.html`
+- 房间名：`challenge-puzzle`
+- 规则引擎单测：`node --test scripts/test_challenge_puzzle.mjs`
+
 ## 贡献方向
 
 - 继续细化剩余七种训练游戏。

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>挑战拼图｜iPad 同步页</title>
+  <style>
+    :root {
+      --bg: #070604;
+      --ink: #f5ecd8;
+      --muted: rgba(245, 236, 216, .62);
+      --line: rgba(222, 184, 109, .27);
+      --gold: #d8ae5a;
+      --thu: #7763d6;
+      --pku: #c02a3b;
+      --paper: #eadbb9;
+      --tile: #1a1510;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background:
+        linear-gradient(90deg, rgba(216, 174, 90, .06) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(216, 174, 90, .05) 1px, transparent 1px),
+        radial-gradient(circle at 14% 18%, rgba(119, 99, 214, .18), transparent 28%),
+        radial-gradient(circle at 86% 20%, rgba(192, 42, 59, .16), transparent 30%),
+        var(--bg);
+      background-size: 52px 52px, 52px 52px, auto, auto, auto;
+      color: var(--ink);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .screen {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: minmax(74px, 11vh) minmax(0, 1fr) minmax(70px, 10vh);
+      gap: 1.6vh;
+      padding: 2.4vh 3vw;
+    }
+    .hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+    .team { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+    .team.right { justify-self: end; flex-direction: row-reverse; }
+    .bar { width: 10px; height: .8em; border-radius: 5px; align-self: center; }
+    .name { color: var(--muted); font-size: clamp(16px, 2.3vmin, 30px); font-weight: 850; letter-spacing: .08em; }
+    .score { font-size: clamp(38px, 6vmin, 86px); line-height: 1; font-weight: 950; }
+    .center { justify-self: center; text-align: center; display: grid; gap: .5vh; }
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: .45em 1em;
+      color: var(--gold);
+      background: rgba(0, 0, 0, .28);
+      font-size: clamp(13px, 1.8vmin, 22px);
+      font-weight: 900;
+      letter-spacing: .15em;
+    }
+    .clock { font-size: clamp(34px, 6.4vmin, 92px); line-height: .9; font-weight: 950; font-variant-numeric: tabular-nums; }
+    .stage { min-height: 0; display: grid; grid-template-columns: minmax(270px, .9fr) minmax(340px, 1.15fr); gap: 2vw; align-items: center; }
+    .boardPanel, .piecePanel {
+      height: 100%;
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(13, 10, 7, .72);
+      box-shadow: 0 26px 80px rgba(0, 0, 0, .44);
+      display: grid;
+      place-items: center;
+      padding: clamp(10px, 2vmin, 26px);
+    }
+    .board {
+      display: grid;
+      gap: clamp(2px, .35vmin, 4px);
+      padding: clamp(9px, 1.8vmin, 22px);
+      background: var(--paper);
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 2px rgba(74, 52, 21, .2);
+    }
+    .cell {
+      width: var(--cell, 5vmin);
+      height: var(--cell, 5vmin);
+      border-radius: 4px;
+    }
+    .cell.on { background: var(--tile); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+    .cell.off { background: transparent; }
+    .pieces {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(86px, 1fr));
+      gap: clamp(10px, 1.7vmin, 20px);
+      align-items: center;
+    }
+    .pieceCard {
+      background: var(--paper);
+      color: #17110b;
+      border-radius: 8px;
+      padding: clamp(8px, 1.4vmin, 16px);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: clamp(8px, 1.3vmin, 16px);
+      align-items: center;
+      min-height: 86px;
+    }
+    .pieceNo {
+      width: clamp(28px, 4vmin, 46px);
+      height: clamp(28px, 4vmin, 46px);
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #2b1c0e;
+      color: #f8e8bd;
+      font-weight: 950;
+      font-size: clamp(16px, 2.2vmin, 28px);
+    }
+    .piece { display: grid; gap: 3px; justify-content: start; }
+    .pCell { width: clamp(12px, 2.1vmin, 24px); height: clamp(12px, 2.1vmin, 24px); border-radius: 3px; }
+    .pCell.on { background: #4a311c; }
+    .pCell.off { background: transparent; }
+    .footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+    .message {
+      grid-column: 1 / -1;
+      justify-self: center;
+      max-width: 92vw;
+      text-align: center;
+      color: rgba(245, 236, 216, .82);
+      font-size: clamp(17px, 2.5vmin, 34px);
+      letter-spacing: .03em;
+      line-height: 1.35;
+    }
+    .result {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+      background: rgba(0, 0, 0, .28);
+      z-index: 5;
+    }
+    .judged .result { display: grid; }
+    .resultBox {
+      border: 1px solid rgba(216, 174, 90, .48);
+      border-radius: 8px;
+      background: rgba(8, 6, 4, .88);
+      padding: clamp(24px, 4vmin, 56px);
+      text-align: center;
+      box-shadow: 0 32px 90px rgba(0, 0, 0, .58);
+    }
+    .resultTitle { color: var(--gold); font-size: clamp(38px, 7vmin, 96px); font-weight: 950; letter-spacing: .12em; }
+    .resultSteps { margin-top: 14px; color: var(--muted); font-size: clamp(18px, 2.4vmin, 30px); }
+    .launcher { position: fixed; right: 18px; bottom: 16px; display: flex; gap: 10px; opacity: .32; z-index: 8; }
+    .launcher:hover { opacity: 1; }
+    .launcher a, .launcher button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .42);
+      color: var(--ink);
+      text-decoration: none;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    :fullscreen .launcher { display: none; }
+    @media (max-aspect-ratio: 1/1) {
+      .screen { overflow: auto; height: auto; min-height: 100vh; }
+      html, body { overflow: auto; }
+      .stage { grid-template-columns: 1fr; }
+      .pieces { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+    }
+  </style>
+</head>
+<body class="idle">
+  <main class="screen">
+    <header class="hud">
+      <div class="team"><span class="bar" style="background:var(--thu)"></span><span class="name">清华</span><span class="score" id="thuScore">0</span></div>
+      <div class="center"><div class="tag" id="phase">WAITING</div><div class="clock" id="clock">--:--</div></div>
+      <div class="team right"><span class="bar" style="background:var(--pku)"></span><span class="name">北大</span><span class="score" id="pkuScore">0</span></div>
+    </header>
+
+    <section class="stage">
+      <div class="boardPanel"><div class="board" id="board"></div></div>
+      <div class="piecePanel"><div class="pieces" id="pieces"></div></div>
+    </section>
+
+    <footer class="footer"><div class="message" id="message">打开主持人控制台，开始比赛。</div></footer>
+  </main>
+  <div class="result"><div class="resultBox"><div class="resultTitle" id="resultTitle">--</div><div class="resultSteps" id="resultSteps"></div></div></div>
+  <div class="launcher"><a href="admin.html" target="_blank">控制台</a><button id="full">全屏</button></div>
+
+  <script src="core.js"></script>
+  <script src="../sync.js"></script>
+  <script>
+  (() => {
+    const ROOM = 'challenge-puzzle';
+    const STORAGE = 'challenge-puzzle:v1:state';
+    const CHANNEL = 'challenge-puzzle-v1';
+    const C = window.ChallengePuzzle;
+    const $ = id => document.getElementById(id);
+    const E = {
+      thuScore: $('thuScore'), pkuScore: $('pkuScore'), phase: $('phase'), clock: $('clock'),
+      board: $('board'), pieces: $('pieces'), message: $('message'), resultTitle: $('resultTitle'),
+      resultSteps: $('resultSteps'), full: $('full')
+    };
+    let state = load() || C.freshState();
+    let lastPuzzleKey = '';
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
+    }
+
+    function accept(next) {
+      state = next || C.freshState();
+      localStorage.setItem(STORAGE, JSON.stringify(state));
+      render();
+    }
+
+    function timeLeft() {
+      if (state.phase !== 'solving') return 0;
+      return Math.max(0, state.endsAt - Date.now());
+    }
+
+    function fmt(ms) {
+      const total = Math.ceil(ms / 1000);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function phaseText() {
+      return { idle: 'WAITING', solving: '同时作答', scoring: '录入成绩', judged: '结果' }[state.phase] || 'WAITING';
+    }
+
+    function resultText() {
+      if (state.winner === 'thu') return '清华胜';
+      if (state.winner === 'pku') return '北大胜';
+      if (state.winner === 'draw') return '平局';
+      return '--';
+    }
+
+    function drawShape(el, rows, cellClass, activeClass) {
+      const cols = Math.max(...rows.map(r => r.length));
+      el.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      rows.forEach(row => {
+        for (let i = 0; i < cols; i += 1) {
+          const d = document.createElement('div');
+          d.className = `${cellClass} ${row[i] === '#' ? activeClass : 'off'}`;
+          el.appendChild(d);
+        }
+      });
+    }
+
+    function drawPuzzle() {
+      const key = state.puzzle ? state.puzzle.id : '';
+      if (key === lastPuzzleKey) return;
+      lastPuzzleKey = key;
+      E.board.innerHTML = '';
+      E.pieces.innerHTML = '';
+      if (!state.puzzle) return;
+      const rows = state.puzzle.board;
+      const cols = Math.max(...rows.map(r => r.length));
+      const cell = Math.max(26, Math.min(58, Math.floor((innerWidth * .32) / cols)));
+      E.board.style.setProperty('--cell', `${cell}px`);
+      E.board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+      drawShape(E.board, rows, 'cell', 'on');
+      state.puzzle.pieces.forEach((piece, i) => {
+        const card = document.createElement('div');
+        card.className = 'pieceCard';
+        const no = document.createElement('div');
+        no.className = 'pieceNo';
+        no.textContent = String(i + 1);
+        const grid = document.createElement('div');
+        grid.className = 'piece';
+        drawShape(grid, piece, 'pCell', 'on');
+        card.append(no, grid);
+        E.pieces.appendChild(card);
+      });
+    }
+
+    function render() {
+      document.body.className = state.phase || 'idle';
+      E.thuScore.textContent = state.scores.thu;
+      E.pkuScore.textContent = state.scores.pku;
+      E.phase.textContent = state.round ? `第 ${state.round} 题 · ${phaseText()}` : phaseText();
+      E.clock.textContent = state.phase === 'solving' ? fmt(timeLeft()) : '--:--';
+      E.message.textContent = state.message || '';
+      E.resultTitle.textContent = resultText();
+      E.resultSteps.textContent = state.results.thu === null || state.results.pku === null
+        ? ''
+        : `清华 Step ${state.results.thu} / 北大 Step ${state.results.pku}`;
+      drawPuzzle();
+    }
+
+    window.addEventListener('storage', e => { if (e.key === STORAGE) accept(load()); });
+    if ('BroadcastChannel' in window) {
+      const bc = new BroadcastChannel(CHANNEL);
+      bc.onmessage = e => accept(e.data);
+    }
+    if (window.Sync && Sync.BACKEND) Sync.display(ROOM, accept);
+
+    setInterval(render, 250);
+    window.addEventListener('resize', () => { lastPuzzleKey = ''; render(); });
+
+    let wake = null;
+    async function keepAwake() { try { wake = await navigator.wakeLock.request('screen'); } catch (_) {} }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+    keepAwake();
+
+    E.full.onclick = () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    };
+    document.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'f') E.full.click(); });
+    render();
+  })();
+  </script>
+</body>
+</html>
