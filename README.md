@@ -160,7 +160,7 @@ Step 高者赢，同 Step 判平局。
 - iPad 同步页：`/challenge-puzzle/index.html`
 - 主持人控制台：`/challenge-puzzle/admin.html`
 - 房间名：`challenge-puzzle`
-- 同步后端不写死在仓库里：用 `?backend=https://你的后端` 打开一次，或在控制台“同步后端”区保存地址。
+- 默认同步后端：`https://bsync.zhangboy.xyz`；如需临时切换，可用 `?backend=https://你的后端` 或在控制台“同步后端”区保存地址。
 - 题库包含每题 `maxStep`，并用求解器验证官方答案和更高 Step 不可行。
 - 规则引擎单测：`node --test scripts/test_challenge_puzzle.mjs`
 

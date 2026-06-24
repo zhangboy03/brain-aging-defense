@@ -11,12 +11,9 @@
  *   Sync.console(room)                     -> { claim, pushState, pushEvent }
  */
 (function () {
-  // The relay URL is intentionally NOT hardcoded here: this repo is public and
-  // the relay runs on a private host. Point a device at the relay by opening any
-  // game page once with ?backend=https://your-relay — it is persisted to
-  // localStorage and reused on every later visit (no need to re-add the param).
-  // window.SYNC_BACKEND and localStorage 'sync_backend' also work.
-  var DEFAULT_BACKEND = "";
+  // Default production relay. It is still overridable per device with
+  // ?backend=..., window.SYNC_BACKEND, or localStorage 'sync_backend'.
+  var DEFAULT_BACKEND = "https://bsync.zhangboy.xyz";
   var fromQuery = null;
   try {
     fromQuery = new URLSearchParams(location.search).get("backend");
