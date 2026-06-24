@@ -3,30 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="light" />
   <title>挑战拼图｜iPad 同步页</title>
   <style>
     :root {
-      --bg: #070604;
-      --ink: #f5ecd8;
-      --muted: rgba(245, 236, 216, .62);
-      --line: rgba(222, 184, 109, .27);
-      --gold: #d8ae5a;
-      --thu: #7763d6;
-      --pku: #c02a3b;
-      --paper: #eadbb9;
-      --tile: #1a1510;
+      --bg: #d8cfbd;
+      --ink: #171410;
+      --muted: rgba(23, 20, 16, .62);
+      --line: rgba(42, 36, 28, .24);
+      --gold: #9b6721;
+      --thu: #5a4bbc;
+      --pku: #b72535;
+      --paper: #eee7d7;
+      --tile: #141210;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       background:
-        linear-gradient(90deg, rgba(216, 174, 90, .06) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(216, 174, 90, .05) 1px, transparent 1px),
-        radial-gradient(circle at 14% 18%, rgba(119, 99, 214, .18), transparent 28%),
-        radial-gradient(circle at 86% 20%, rgba(192, 42, 59, .16), transparent 30%),
+        linear-gradient(90deg, rgba(255, 255, 255, .18) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(0, 0, 0, .04) 1px, transparent 1px),
         var(--bg);
-      background-size: 52px 52px, 52px 52px, auto, auto, auto;
+      background-size: 48px 48px, 48px 48px, auto;
       color: var(--ink);
       font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     }
@@ -35,11 +33,21 @@
       width: 100vw;
       height: 100vh;
       display: grid;
-      grid-template-rows: minmax(74px, 11vh) minmax(0, 1fr) minmax(70px, 10vh);
-      gap: 1.6vh;
-      padding: 2.4vh 3vw;
+      grid-template-rows: minmax(70px, 10vh) minmax(0, 1fr) minmax(68px, 9vh);
+      gap: 1vh;
+      padding: 2vh 3vw;
     }
-    .hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+    .hud {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 2vw;
+      padding: 0 1vw;
+      background: rgba(238, 231, 215, .84);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: 0 12px 28px rgba(67, 55, 38, .16);
+    }
     .team { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
     .team.right { justify-self: end; flex-direction: row-reverse; }
     .bar { width: 10px; height: .8em; border-radius: 5px; align-self: center; }
@@ -47,75 +55,99 @@
     .score { font-size: clamp(38px, 6vmin, 86px); line-height: 1; font-weight: 950; }
     .center { justify-self: center; text-align: center; display: grid; gap: .5vh; }
     .tag {
-      border: 1px solid var(--line);
-      border-radius: 999px;
+      border: 1px solid rgba(42, 36, 28, .3);
+      border-radius: 4px;
       padding: .45em 1em;
-      color: var(--gold);
-      background: rgba(0, 0, 0, .28);
+      color: #fff7e8;
+      background: #1a1712;
       font-size: clamp(13px, 1.8vmin, 22px);
       font-weight: 900;
       letter-spacing: .15em;
     }
     .clock { font-size: clamp(34px, 6.4vmin, 92px); line-height: .9; font-weight: 950; font-variant-numeric: tabular-nums; }
-    .stage { min-height: 0; display: grid; grid-template-columns: minmax(270px, .9fr) minmax(340px, 1.15fr); gap: 2vw; align-items: center; }
+    .stage {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 1.8vh;
+      align-items: center;
+    }
     .boardPanel, .piecePanel {
       height: 100%;
       min-height: 0;
       border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(13, 10, 7, .72);
-      box-shadow: 0 26px 80px rgba(0, 0, 0, .44);
+      border-radius: 6px;
+      background: rgba(238, 231, 215, .9);
+      box-shadow: 0 22px 48px rgba(67, 55, 38, .18);
       display: grid;
       place-items: center;
-      padding: clamp(10px, 2vmin, 26px);
+      padding: clamp(10px, 2.4vmin, 30px);
+    }
+    .piecePanel {
+      height: auto;
+      min-height: 118px;
+      padding: clamp(10px, 1.6vmin, 18px);
     }
     .board {
       display: grid;
       gap: clamp(2px, .35vmin, 4px);
       padding: clamp(9px, 1.8vmin, 22px);
       background: var(--paper);
-      border-radius: 8px;
-      box-shadow: inset 0 0 0 2px rgba(74, 52, 21, .2);
+      border-radius: 6px;
+      border: 2px solid rgba(42, 36, 28, .3);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
     }
     .cell {
       width: var(--cell, 5vmin);
       height: var(--cell, 5vmin);
-      border-radius: 4px;
+      border-radius: 2px;
+      display: grid;
+      place-items: center;
+      font-size: calc(var(--cell, 5vmin) * .44);
+      font-weight: 950;
+      line-height: 1;
     }
-    .cell.on { background: var(--tile); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+    .cell.on { background: var(--tile); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+    .cell.placed {
+      background: #f8f4e8;
+      color: #15120e;
+      border: 2px solid #15120e;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .16);
+    }
     .cell.off { background: transparent; }
     .pieces {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(3, minmax(86px, 1fr));
-      gap: clamp(10px, 1.7vmin, 20px);
+      grid-template-columns: repeat(6, minmax(70px, 1fr));
+      gap: clamp(8px, 1.2vmin, 14px);
       align-items: center;
     }
     .pieceCard {
-      background: var(--paper);
+      background: #f8f4e8;
       color: #17110b;
-      border-radius: 8px;
-      padding: clamp(8px, 1.4vmin, 16px);
+      border: 2px solid rgba(21, 18, 14, .72);
+      border-radius: 4px;
+      padding: clamp(6px, 1.1vmin, 12px);
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: clamp(8px, 1.3vmin, 16px);
+      gap: clamp(6px, 1vmin, 10px);
       align-items: center;
-      min-height: 86px;
+      min-height: 78px;
     }
     .pieceNo {
       width: clamp(28px, 4vmin, 46px);
       height: clamp(28px, 4vmin, 46px);
-      border-radius: 999px;
+      border-radius: 50%;
       display: grid;
       place-items: center;
-      background: #2b1c0e;
+      background: #171410;
       color: #f8e8bd;
       font-weight: 950;
       font-size: clamp(16px, 2.2vmin, 28px);
     }
     .piece { display: grid; gap: 3px; justify-content: start; }
-    .pCell { width: clamp(12px, 2.1vmin, 24px); height: clamp(12px, 2.1vmin, 24px); border-radius: 3px; }
-    .pCell.on { background: #4a311c; }
+    .pCell { width: clamp(11px, 1.8vmin, 21px); height: clamp(11px, 1.8vmin, 21px); border-radius: 2px; }
+    .pCell.on { background: #171410; }
     .pCell.off { background: transparent; }
     .footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
     .message {
@@ -123,7 +155,7 @@
       justify-self: center;
       max-width: 92vw;
       text-align: center;
-      color: rgba(245, 236, 216, .82);
+      color: rgba(23, 20, 16, .76);
       font-size: clamp(17px, 2.5vmin, 34px);
       letter-spacing: .03em;
       line-height: 1.35;
@@ -134,26 +166,26 @@
       display: none;
       place-items: center;
       pointer-events: none;
-      background: rgba(0, 0, 0, .28);
+      background: rgba(30, 24, 16, .16);
       z-index: 5;
     }
     .judged .result { display: grid; }
     .resultBox {
-      border: 1px solid rgba(216, 174, 90, .48);
-      border-radius: 8px;
-      background: rgba(8, 6, 4, .88);
+      border: 1px solid rgba(42, 36, 28, .32);
+      border-radius: 6px;
+      background: rgba(238, 231, 215, .94);
       padding: clamp(24px, 4vmin, 56px);
       text-align: center;
       box-shadow: 0 32px 90px rgba(0, 0, 0, .58);
     }
-    .resultTitle { color: var(--gold); font-size: clamp(38px, 7vmin, 96px); font-weight: 950; letter-spacing: .12em; }
+    .resultTitle { color: #171410; font-size: clamp(38px, 7vmin, 96px); font-weight: 950; letter-spacing: .12em; }
     .resultSteps { margin-top: 14px; color: var(--muted); font-size: clamp(18px, 2.4vmin, 30px); }
     .launcher { position: fixed; right: 18px; bottom: 16px; display: flex; gap: 10px; opacity: .32; z-index: 8; }
     .launcher:hover { opacity: 1; }
     .launcher a, .launcher button {
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(0, 0, 0, .42);
+      background: rgba(238, 231, 215, .86);
       color: var(--ink);
       text-decoration: none;
       padding: 9px 12px;
@@ -164,8 +196,7 @@
     @media (max-aspect-ratio: 1/1) {
       .screen { overflow: auto; height: auto; min-height: 100vh; }
       html, body { overflow: auto; }
-      .stage { grid-template-columns: 1fr; }
-      .pieces { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+      .pieces { grid-template-columns: repeat(3, minmax(86px, 1fr)); }
     }
   </style>
 </head>
@@ -250,18 +281,27 @@
     }
 
     function drawPuzzle() {
-      const key = state.puzzle ? state.puzzle.id : '';
+      const key = state.puzzle ? `${state.puzzle.id}:${state.phase}` : '';
       if (key === lastPuzzleKey) return;
       lastPuzzleKey = key;
       E.board.innerHTML = '';
       E.pieces.innerHTML = '';
       if (!state.puzzle) return;
       const rows = state.puzzle.board;
+      const answer = state.phase === 'judged' ? C.answerGrid(state.puzzle, state.puzzle.maxStep) : null;
       const cols = Math.max(...rows.map(r => r.length));
-      const cell = Math.max(26, Math.min(58, Math.floor((innerWidth * .32) / cols)));
+      const cell = Math.max(28, Math.min(68, Math.floor((innerHeight * .54) / rows.length), Math.floor((innerWidth * .78) / cols)));
       E.board.style.setProperty('--cell', `${cell}px`);
       E.board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
-      drawShape(E.board, rows, 'cell', 'on');
+      rows.forEach((row, y) => {
+        for (let x = 0; x < cols; x += 1) {
+          const d = document.createElement('div');
+          const mark = answer && answer[y] ? answer[y][x] : '';
+          d.className = `cell ${row[x] === '#' ? (mark && mark !== '·' ? 'placed' : 'on') : 'off'}`;
+          d.textContent = mark && mark !== '·' ? mark : '';
+          E.board.appendChild(d);
+        }
+      });
       state.puzzle.pieces.forEach((piece, i) => {
         const card = document.createElement('div');
         card.className = 'pieceCard';

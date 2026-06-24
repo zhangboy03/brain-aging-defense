@@ -15,11 +15,20 @@ test('startRound reveals one puzzle and starts one shared timer for both teams',
 
   assert.equal(state.phase, 'solving');
   assert.equal(state.round, 1);
-  assert.equal(state.puzzle.id, 'river-steps');
+  assert.equal(state.puzzle.id, 'area-gate');
   assert.equal(state.durationMs, 180000);
   assert.equal(state.results.thu, null);
   assert.equal(state.results.pku, null);
   assert.equal(state.winner, '');
+});
+
+test('puzzle pack has proven max steps and answer grids', () => {
+  for (const puzzle of C.PUZZLES) {
+    assert.equal(C.upperBoundStep(puzzle), puzzle.maxStep, `${puzzle.id} upper bound`);
+    assert.equal(C.maxAchievableStep(puzzle), puzzle.maxStep, `${puzzle.id} max step`);
+    assert.ok(C.answerGrid(puzzle, puzzle.maxStep), `${puzzle.id} has an answer`);
+    assert.equal(C.findSolution(puzzle, puzzle.maxStep + 1), null, `${puzzle.id} rejects one higher step`);
+  }
 });
 
 test('results are rejected before the solve timer ends', () => {

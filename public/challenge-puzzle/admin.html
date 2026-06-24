@@ -61,6 +61,7 @@
       box-shadow: 0 22px 60px rgba(0, 0, 0, .46);
     }
     .top { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 16px 18px; }
+    .topActions { display: grid; gap: 8px; min-width: 260px; }
     h1 { margin: 0; font-size: 28px; letter-spacing: .04em; }
     h2 { margin: 0 0 12px; font-size: 17px; }
     .sub, .hint { color: var(--muted); font-size: 13px; line-height: 1.55; }
@@ -96,11 +97,36 @@
     .pCell.on { background: #4e3420; }
     .pCell.off { background: transparent; }
     .msg { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #00000038; padding: 12px; color: var(--muted); line-height: 1.5; }
+    .backend { font-size: 12px; line-height: 1.45; color: var(--muted); word-break: break-all; }
+    .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: #777; }
+    .dot.ok { background: var(--ok); }
+    .dot.bad { background: var(--bad); }
     .team { border: 1px solid var(--line); border-left: 6px solid var(--team); border-radius: 8px; background: #00000038; padding: 12px; }
     .team h3 { margin: 0 0 8px; font-size: 18px; }
     .teamScore { font-size: 52px; line-height: 1; font-weight: 950; margin-bottom: 10px; }
     .resultLine { min-height: 26px; color: var(--muted); font-size: 13px; }
     .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; color: var(--gold); font-weight: 800; }
+    .answer {
+      display: grid;
+      gap: 2px;
+      padding: 10px;
+      background: #e8d8b4;
+      border: 1px solid rgba(64, 45, 18, .28);
+      border-radius: 8px;
+    }
+    .aCell {
+      width: var(--answer-cell, 28px);
+      height: var(--answer-cell, 28px);
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 950;
+      background: #15120e;
+      color: transparent;
+    }
+    .aCell.placed { background: #f8f2e5; color: #15120e; border: 1px solid #15120e; }
+    .aCell.off { background: transparent; border: 0; }
     @media (max-width: 1120px) { .app { grid-template-columns: 1fr; } .metric { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
@@ -111,7 +137,10 @@
       <h1>挑战拼图 控制台</h1>
       <div class="sub">简化赛制：两队同时看题、同时拼图；倒计时结束后录入各自完成的最高 Step，Step 高者赢。</div>
     </div>
-    <button class="primary" id="open">打开 iPad 同步页</button>
+    <div class="topActions">
+      <button class="primary" id="open">打开 iPad 同步页</button>
+      <div class="backend" id="backendTop"><span class="dot"></span>同步后端检测中</div>
+    </div>
   </header>
 
   <aside class="panel">
@@ -130,6 +159,15 @@
       <h2>流程</h2>
       <div class="hint">1. 选择题目并开始。<br>2. 两名选手同时拼图。<br>3. 时间到，主持人录入清华/北大的最高 Step。<br>4. 系统比较 Step 并给本题计分。</div>
     </section>
+    <section class="sec stack">
+      <h2>同步后端</h2>
+      <p><label>后端地址</label><input id="backendUrl" placeholder="例如 https://sync.example.com"></p>
+      <div class="g2">
+        <button id="backendSave">保存并重载</button>
+        <button id="backendClear">清除</button>
+      </div>
+      <div class="msg" id="backendState">读取中</div>
+    </section>
   </aside>
 
   <section class="panel">
@@ -143,6 +181,7 @@
       <div class="boardWrap">
         <div class="board" id="board"></div>
         <div class="pieces" id="pieces"></div>
+        <div class="answer" id="answer"></div>
       </div>
       <div class="msg" id="message">打开主持人控制台，开始比赛。</div>
     </div>
@@ -184,7 +223,9 @@
     open: $('open'), puzzle: $('puzzle'), seconds: $('seconds'), start: $('start'), finish: $('finish'), reset: $('reset'),
     phase: $('phase'), round: $('round'), clock: $('clock'), winner: $('winner'), board: $('board'), pieces: $('pieces'),
     message: $('message'), thuScore: $('thuScore'), pkuScore: $('pkuScore'), thuStep: $('thuStep'), pkuStep: $('pkuStep'),
-    thuSave: $('thuSave'), pkuSave: $('pkuSave'), thuResult: $('thuResult'), pkuResult: $('pkuResult'), next: $('next')
+    thuSave: $('thuSave'), pkuSave: $('pkuSave'), thuResult: $('thuResult'), pkuResult: $('pkuResult'), next: $('next'),
+    answer: $('answer'), backendTop: $('backendTop'), backendUrl: $('backendUrl'), backendSave: $('backendSave'),
+    backendClear: $('backendClear'), backendState: $('backendState')
   };
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel(CHANNEL) : null;
   let sync = null;
@@ -193,7 +234,7 @@
   C.PUZZLES.forEach((p, i) => {
     const opt = document.createElement('option');
     opt.value = String(i);
-    opt.textContent = `${i + 1}. ${p.title}`;
+    opt.textContent = `${i + 1}. ${p.title}（上限 Step ${p.maxStep}）`;
     E.puzzle.appendChild(opt);
   });
 
@@ -231,6 +272,10 @@
     return '--';
   }
 
+  function selectedPuzzle() {
+    return C.PUZZLES[Number(E.puzzle.value) || 0];
+  }
+
   function drawShape(el, rows, cellClass, activeClass) {
     const cols = Math.max(...rows.map(r => r.length));
     el.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -246,13 +291,15 @@
   function drawPuzzle() {
     E.board.innerHTML = '';
     E.pieces.innerHTML = '';
-    if (!state.puzzle) return;
-    const rows = state.puzzle.board;
+    E.answer.innerHTML = '';
+    const puzzle = state.puzzle || selectedPuzzle();
+    if (!puzzle) return;
+    const rows = puzzle.board;
     const cols = Math.max(...rows.map(r => r.length));
     E.board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
     E.board.style.setProperty('--cell', `${Math.max(18, Math.min(32, Math.floor(360 / cols)))}px`);
     drawShape(E.board, rows, 'cell', 'on');
-    state.puzzle.pieces.forEach((piece, i) => {
+    puzzle.pieces.forEach((piece, i) => {
       const card = document.createElement('div');
       card.className = 'pieceCard';
       const no = document.createElement('div');
@@ -264,6 +311,22 @@
       card.append(no, grid);
       E.pieces.appendChild(card);
     });
+
+    const answer = C.answerGrid(puzzle, puzzle.maxStep);
+    if (answer) {
+      E.answer.style.gridTemplateColumns = `repeat(${cols}, var(--answer-cell))`;
+      E.answer.style.setProperty('--answer-cell', `${Math.max(18, Math.min(30, Math.floor(330 / cols)))}px`);
+      answer.forEach((row, y) => {
+        for (let x = 0; x < cols; x += 1) {
+          const source = rows[y] && rows[y][x] === '#';
+          const mark = row[x];
+          const d = document.createElement('div');
+          d.className = `aCell ${source ? (mark && mark !== '·' ? 'placed' : '') : 'off'}`;
+          d.textContent = mark && mark !== '·' ? mark : '';
+          E.answer.appendChild(d);
+        }
+      });
+    }
   }
 
   function render() {
@@ -283,6 +346,23 @@
     drawPuzzle();
   }
 
+  async function renderBackendStatus() {
+    const backend = window.Sync ? Sync.BACKEND : '';
+    E.backendUrl.value = backend || '';
+    if (!backend) {
+      E.backendTop.innerHTML = '<span class="dot bad"></span>未配置同步后端';
+      E.backendState.textContent = '当前页面没有后端地址。用 ?backend=https://你的 Cloudflare Tunnel 地址 打开一次，或在这里保存地址后重载。';
+      return;
+    }
+    E.backendTop.innerHTML = `<span class="dot"></span>${backend}`;
+    E.backendState.textContent = `正在访问 ${backend}/healthz`;
+    const ok = await Sync.reachable();
+    E.backendTop.innerHTML = `<span class="dot ${ok ? 'ok' : 'bad'}"></span>${ok ? '后端在线' : '后端不可达'}：${backend}`;
+    E.backendState.textContent = ok
+      ? `已连通 ${backend}/healthz，iPad 用同一后端地址即可同步。`
+      : `无法连通 ${backend}/healthz。请核对 VPS 服务、Cloudflare Tunnel 域名和 HTTPS 证书。`;
+  }
+
   function maybeAutoFinish() {
     if (state.phase === 'solving' && timeLeft() <= 0) {
       C.finishSolving(state);
@@ -292,7 +372,20 @@
     }
   }
 
-  E.open.onclick = () => window.open('index.html', 'challenge_puzzle_display');
+  E.open.onclick = () => {
+    const backend = window.Sync && Sync.BACKEND ? `?backend=${encodeURIComponent(Sync.BACKEND)}` : '';
+    window.open(`index.html${backend}`, 'challenge_puzzle_display');
+  };
+  E.puzzle.onchange = () => { if (!state.puzzle) render(); };
+  E.backendSave.onclick = () => {
+    const value = E.backendUrl.value.trim().replace(/\/+$/, '');
+    if (value) localStorage.setItem('sync_backend', value);
+    location.reload();
+  };
+  E.backendClear.onclick = () => {
+    localStorage.removeItem('sync_backend');
+    location.reload();
+  };
   E.start.onclick = () => {
     const puzzle = C.PUZZLES[Number(E.puzzle.value) || 0];
     const duration = Math.max(30, Math.min(600, Number(E.seconds.value) || 180)) * 1000;
@@ -311,6 +404,7 @@
 
   setInterval(maybeAutoFinish, 250);
   render();
+  renderBackendStatus();
 
   (async () => {
     if (!window.Sync || !Sync.BACKEND) return;
