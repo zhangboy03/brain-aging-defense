@@ -154,8 +154,8 @@ npm audit --audit-level=moderate
 ## 挑战拼图（Challenge Puzzle）
 
 清华 / 北大 1v1 同步拼图挑战。主持人在电脑控制台出题并启动统一倒计时，两台 iPad 显示完全相同
-的题面、拼图块、倒计时和结果。选手用实物拼图作答；时间结束后，主持人录入双方完成的最高 Step，
-Step 高者赢，同 Step 判平局。
+的题面、拼图块、倒计时和结果。选手从 1 号块开始连续摆放，可旋转、不可翻面、不可跳号；时间结束后，
+主持人录入双方完成的最高 Step，Step 高者赢，同 Step 判平局。
 
 - iPad 同步页：`/challenge-puzzle/index.html`
 - 主持人控制台：`/challenge-puzzle/admin.html`

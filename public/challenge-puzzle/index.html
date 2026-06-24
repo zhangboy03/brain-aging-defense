@@ -96,6 +96,7 @@
       border-radius: 6px;
       border: 2px solid rgba(42, 36, 28, .3);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+      touch-action: none;
     }
     .cell {
       width: var(--cell, 5vmin);
@@ -108,6 +109,8 @@
       line-height: 1;
     }
     .cell.on { background: var(--tile); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+    .cell.preview { background: #d6bf7f; outline: 2px solid rgba(23, 20, 16, .72); }
+    .cell.badPreview { background: #9d2933; outline: 2px solid rgba(23, 20, 16, .72); }
     .cell.placed {
       background: #f8f4e8;
       color: #15120e;
@@ -133,7 +136,12 @@
       gap: clamp(6px, 1vmin, 10px);
       align-items: center;
       min-height: 78px;
+      touch-action: none;
+      user-select: none;
     }
+    .pieceCard.current { box-shadow: 0 0 0 4px rgba(155, 103, 33, .32); cursor: grab; }
+    .pieceCard.placed { opacity: .38; }
+    .pieceCard.locked { opacity: .28; filter: grayscale(.8); }
     .pieceNo {
       width: clamp(28px, 4vmin, 46px);
       height: clamp(28px, 4vmin, 46px);
@@ -149,16 +157,52 @@
     .pCell { width: clamp(11px, 1.8vmin, 21px); height: clamp(11px, 1.8vmin, 21px); border-radius: 2px; }
     .pCell.on { background: #171410; }
     .pCell.off { background: transparent; }
-    .footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+    .footer { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2vw; }
     .message {
-      grid-column: 1 / -1;
-      justify-self: center;
+      justify-self: start;
       max-width: 92vw;
-      text-align: center;
+      text-align: left;
       color: rgba(23, 20, 16, .76);
       font-size: clamp(17px, 2.5vmin, 34px);
       letter-spacing: .03em;
       line-height: 1.35;
+    }
+    .tools { display: flex; align-items: center; justify-content: end; gap: 10px; flex-wrap: wrap; }
+    .stepBadge {
+      min-width: 96px;
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      padding: 8px 14px;
+      border: 1px solid rgba(42, 36, 28, .3);
+      border-radius: 4px;
+      background: #1a1712;
+      color: #fff7e8;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+    .toolBtn {
+      min-height: 42px;
+      border: 1px solid rgba(42, 36, 28, .3);
+      border-radius: 4px;
+      background: rgba(238, 231, 215, .9);
+      color: var(--ink);
+      font-weight: 850;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .toolBtn:disabled { opacity: .38; cursor: not-allowed; }
+    .ghost {
+      position: fixed;
+      z-index: 20;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: .86;
+      background: #f8f4e8;
+      border: 2px solid #171410;
+      border-radius: 4px;
+      padding: 8px;
+      box-shadow: 0 18px 42px rgba(23, 20, 16, .28);
     }
     .result {
       position: fixed;
@@ -197,6 +241,9 @@
       .screen { overflow: auto; height: auto; min-height: 100vh; }
       html, body { overflow: auto; }
       .pieces { grid-template-columns: repeat(3, minmax(86px, 1fr)); }
+      .footer { grid-template-columns: 1fr; }
+      .message { text-align: center; justify-self: center; }
+      .tools { justify-content: center; }
     }
   </style>
 </head>
@@ -213,7 +260,15 @@
       <div class="piecePanel"><div class="pieces" id="pieces"></div></div>
     </section>
 
-    <footer class="footer"><div class="message" id="message">打开主持人控制台，开始比赛。</div></footer>
+    <footer class="footer">
+      <div class="message" id="message">打开主持人控制台，开始比赛。</div>
+      <div class="tools">
+        <div class="stepBadge" id="localStep">Step 0</div>
+        <button class="toolBtn" id="rotate">旋转</button>
+        <button class="toolBtn" id="undo">撤回</button>
+        <button class="toolBtn" id="clear">清空</button>
+      </div>
+    </footer>
   </main>
   <div class="result"><div class="resultBox"><div class="resultTitle" id="resultTitle">--</div><div class="resultSteps" id="resultSteps"></div></div></div>
   <div class="launcher"><a href="admin.html" target="_blank">控制台</a><button id="full">全屏</button></div>
@@ -230,10 +285,14 @@
     const E = {
       thuScore: $('thuScore'), pkuScore: $('pkuScore'), phase: $('phase'), clock: $('clock'),
       board: $('board'), pieces: $('pieces'), message: $('message'), resultTitle: $('resultTitle'),
-      resultSteps: $('resultSteps'), full: $('full')
+      resultSteps: $('resultSteps'), full: $('full'), localStep: $('localStep'), rotate: $('rotate'),
+      undo: $('undo'), clear: $('clear')
     };
     let state = load() || C.freshState();
     let lastPuzzleKey = '';
+    let work = freshWork();
+    let hover = null;
+    let drag = null;
 
     function load() {
       try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
@@ -242,7 +301,40 @@
     function accept(next) {
       state = next || C.freshState();
       localStorage.setItem(STORAGE, JSON.stringify(state));
+      ensureWork();
       render();
+    }
+
+    function freshWork() {
+      return { puzzleId: '', round: 0, placements: [], rotation: 0 };
+    }
+
+    function workKey() {
+      if (!state.puzzle) return '';
+      return `${STORAGE}:work:${state.round}:${state.puzzle.id}`;
+    }
+
+    function ensureWork() {
+      if (!state.puzzle) {
+        work = freshWork();
+        return;
+      }
+      const key = workKey();
+      if (work.puzzleId === state.puzzle.id && work.round === state.round) return;
+      try {
+        work = JSON.parse(localStorage.getItem(key)) || freshWork();
+      } catch (_) {
+        work = freshWork();
+      }
+      work.puzzleId = state.puzzle.id;
+      work.round = state.round;
+      work.placements = Array.isArray(work.placements) ? work.placements : [];
+      work.rotation = Number.isFinite(work.rotation) ? work.rotation : 0;
+    }
+
+    function saveWork() {
+      const key = workKey();
+      if (key) localStorage.setItem(key, JSON.stringify(work));
     }
 
     function timeLeft() {
@@ -280,8 +372,58 @@
       });
     }
 
+    function nextIndex() {
+      return Math.min(work.placements.length, state.puzzle ? state.puzzle.pieces.length : 0);
+    }
+
+    function placedMap() {
+      const map = new Map();
+      if (!state.puzzle) return map;
+      work.placements.forEach((placement, index) => {
+        const shape = C.orientations(state.puzzle.pieces[index])[placement.rotation];
+        shape.cells.forEach(c => map.set(`${placement.x + c.x},${placement.y + c.y}`, index + 1));
+      });
+      return map;
+    }
+
+    function candidate(index, x, y, rotation) {
+      if (!state.puzzle || index < 0 || index >= state.puzzle.pieces.length) return { ok: false, cells: [] };
+      const shape = C.orientations(state.puzzle.pieces[index])[rotation] || C.orientations(state.puzzle.pieces[index])[0];
+      const occupied = placedMap();
+      const cells = shape.cells.map(c => ({ x: x + c.x, y: y + c.y }));
+      const ok = cells.every(c => {
+        const row = state.puzzle.board[c.y] || '';
+        return row[c.x] === '#' && !occupied.has(`${c.x},${c.y}`);
+      });
+      return { ok, cells };
+    }
+
+    function activeCandidate() {
+      if (!hover || state.phase !== 'solving') return null;
+      const index = nextIndex();
+      if (!state.puzzle || index >= state.puzzle.pieces.length) return null;
+      const rotations = C.orientations(state.puzzle.pieces[index]);
+      return candidate(index, hover.x, hover.y, work.rotation % rotations.length);
+    }
+
+    function drawPieceGrid(piece, cellSizeClass) {
+      const grid = document.createElement('div');
+      grid.className = 'piece';
+      const cols = Math.max(...piece.map(r => r.length));
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      piece.forEach(row => {
+        for (let i = 0; i < cols; i += 1) {
+          const d = document.createElement('div');
+          d.className = `${cellSizeClass} ${row[i] === '#' ? 'on' : 'off'}`;
+          grid.appendChild(d);
+        }
+      });
+      return grid;
+    }
+
     function drawPuzzle() {
-      const key = state.puzzle ? `${state.puzzle.id}:${state.phase}` : '';
+      ensureWork();
+      const key = state.puzzle ? `${state.puzzle.id}:${state.phase}:${JSON.stringify(work.placements)}:${work.rotation}:${hover ? `${hover.x},${hover.y}` : ''}` : '';
       if (key === lastPuzzleKey) return;
       lastPuzzleKey = key;
       E.board.innerHTML = '';
@@ -290,27 +432,45 @@
       const rows = state.puzzle.board;
       const answer = state.phase === 'judged' ? C.answerGrid(state.puzzle, state.puzzle.maxStep) : null;
       const cols = Math.max(...rows.map(r => r.length));
+      const placed = placedMap();
+      const preview = activeCandidate();
+      const previewKeys = new Set((preview ? preview.cells : []).map(c => `${c.x},${c.y}`));
       const cell = Math.max(28, Math.min(68, Math.floor((innerHeight * .54) / rows.length), Math.floor((innerWidth * .78) / cols)));
       E.board.style.setProperty('--cell', `${cell}px`);
       E.board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
       rows.forEach((row, y) => {
         for (let x = 0; x < cols; x += 1) {
           const d = document.createElement('div');
+          d.dataset.x = String(x);
+          d.dataset.y = String(y);
           const mark = answer && answer[y] ? answer[y][x] : '';
-          d.className = `cell ${row[x] === '#' ? (mark && mark !== '·' ? 'placed' : 'on') : 'off'}`;
-          d.textContent = mark && mark !== '·' ? mark : '';
+          const placedNo = placed.get(`${x},${y}`);
+          if (mark && mark !== '·') {
+            d.className = 'cell placed';
+            d.textContent = mark;
+          } else if (placedNo) {
+            d.className = 'cell placed';
+            d.textContent = placedNo;
+          } else if (row[x] === '#') {
+            d.className = `cell ${previewKeys.has(`${x},${y}`) ? (preview.ok ? 'preview' : 'badPreview') : 'on'}`;
+          } else {
+            d.className = 'cell off';
+          }
           E.board.appendChild(d);
         }
       });
       state.puzzle.pieces.forEach((piece, i) => {
         const card = document.createElement('div');
-        card.className = 'pieceCard';
+        const next = nextIndex();
+        card.className = `pieceCard ${i < next ? 'placed' : i === next && state.phase === 'solving' ? 'current' : 'locked'}`;
+        card.dataset.index = String(i);
         const no = document.createElement('div');
         no.className = 'pieceNo';
         no.textContent = String(i + 1);
-        const grid = document.createElement('div');
-        grid.className = 'piece';
-        drawShape(grid, piece, 'pCell', 'on');
+        const activePiece = i === next && state.phase === 'solving'
+          ? C.orientations(piece)[work.rotation % C.orientations(piece).length].rows
+          : piece;
+        const grid = drawPieceGrid(activePiece, 'pCell');
         card.append(no, grid);
         E.pieces.appendChild(card);
       });
@@ -327,8 +487,117 @@
       E.resultSteps.textContent = state.results.thu === null || state.results.pku === null
         ? ''
         : `清华 Step ${state.results.thu} / 北大 Step ${state.results.pku}`;
+      E.localStep.textContent = `Step ${state.puzzle ? nextIndex() : 0}`;
+      E.rotate.disabled = E.undo.disabled = E.clear.disabled = state.phase !== 'solving' || !state.puzzle;
       drawPuzzle();
     }
+
+    function boardCellFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      const cell = el && el.closest ? el.closest('.cell') : null;
+      if (!cell || !E.board.contains(cell) || cell.classList.contains('off')) return null;
+      return { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+    }
+
+    function placeAt(x, y) {
+      if (!state.puzzle || state.phase !== 'solving') return false;
+      const index = nextIndex();
+      if (index >= state.puzzle.pieces.length) return false;
+      const rotations = C.orientations(state.puzzle.pieces[index]);
+      const rotation = work.rotation % rotations.length;
+      const trial = candidate(index, x, y, rotation);
+      if (!trial.ok) return false;
+      work.placements.push({ x, y, rotation });
+      work.rotation = 0;
+      hover = null;
+      saveWork();
+      lastPuzzleKey = '';
+      render();
+      return true;
+    }
+
+    function beginDrag(event, card) {
+      if (!state.puzzle || state.phase !== 'solving') return;
+      const index = Number(card.dataset.index);
+      if (index !== nextIndex()) return;
+      event.preventDefault();
+      drag = document.createElement('div');
+      drag.className = 'ghost';
+      const rows = C.orientations(state.puzzle.pieces[index])[work.rotation % C.orientations(state.puzzle.pieces[index]).length].rows;
+      drag.appendChild(drawPieceGrid(rows, 'pCell'));
+      document.body.appendChild(drag);
+      moveDrag(event);
+      document.addEventListener('pointermove', moveDrag);
+      document.addEventListener('pointerup', endDrag, { once: true });
+    }
+
+    function moveDrag(event) {
+      if (!drag) return;
+      drag.style.left = `${event.clientX}px`;
+      drag.style.top = `${event.clientY}px`;
+      hover = boardCellFromPoint(event.clientX, event.clientY);
+      lastPuzzleKey = '';
+      render();
+    }
+
+    function endDrag(event) {
+      const target = boardCellFromPoint(event.clientX, event.clientY);
+      if (drag) drag.remove();
+      drag = null;
+      document.removeEventListener('pointermove', moveDrag);
+      if (target && placeAt(target.x, target.y)) return;
+      hover = null;
+      lastPuzzleKey = '';
+      render();
+    }
+
+    E.pieces.addEventListener('pointerdown', event => {
+      const card = event.target.closest('.pieceCard');
+      if (card) beginDrag(event, card);
+    });
+    E.board.addEventListener('pointermove', event => {
+      if (drag) return;
+      hover = boardCellFromPoint(event.clientX, event.clientY);
+      lastPuzzleKey = '';
+      render();
+    });
+    E.board.addEventListener('pointerleave', () => {
+      if (drag) return;
+      hover = null;
+      lastPuzzleKey = '';
+      render();
+    });
+    E.board.addEventListener('click', event => {
+      const target = boardCellFromPoint(event.clientX, event.clientY);
+      if (target) placeAt(target.x, target.y);
+    });
+    E.rotate.onclick = () => {
+      if (!state.puzzle || state.phase !== 'solving') return;
+      const index = nextIndex();
+      if (index >= state.puzzle.pieces.length) return;
+      work.rotation = (work.rotation + 1) % C.orientations(state.puzzle.pieces[index]).length;
+      saveWork();
+      lastPuzzleKey = '';
+      render();
+    };
+    E.undo.onclick = () => {
+      if (!state.puzzle || state.phase !== 'solving' || work.placements.length === 0) return;
+      work.placements.pop();
+      work.rotation = 0;
+      hover = null;
+      saveWork();
+      lastPuzzleKey = '';
+      render();
+    };
+    E.clear.onclick = () => {
+      if (!state.puzzle || state.phase !== 'solving') return;
+      work.placements = [];
+      work.rotation = 0;
+      hover = null;
+      saveWork();
+      lastPuzzleKey = '';
+      render();
+    };
 
     window.addEventListener('storage', e => { if (e.key === STORAGE) accept(load()); });
     if ('BroadcastChannel' in window) {
