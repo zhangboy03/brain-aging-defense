@@ -272,7 +272,7 @@
     state.puzzle = clonePuzzle(puzzle);
     state.results = { thu: null, pku: null };
     state.winner = '';
-    state.message = '双方同时开始拼图，倒计时结束后录入最佳 Step。';
+    state.message = '拼图块可以旋转但不能翻面';
     return state;
   }
 

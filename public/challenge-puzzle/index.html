@@ -7,188 +7,271 @@
   <title>挑战拼图｜iPad 同步页</title>
   <style>
     :root {
-      --bg: #d8cfbd;
-      --ink: #171410;
-      --muted: rgba(23, 20, 16, .62);
-      --line: rgba(42, 36, 28, .24);
-      --gold: #9b6721;
+      --bg: #d5d1c8;
+      --ink: #161616;
+      --muted: rgba(22, 22, 22, .66);
+      --line: rgba(19, 19, 19, .42);
+      --red: #f13b2f;
+      --red-dark: #bb201b;
       --thu: #5a4bbc;
       --pku: #b72535;
-      --paper: #eee7d7;
-      --tile: #141210;
+      --paper: #f4f4f1;
+      --tile: #111;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       background:
-        linear-gradient(90deg, rgba(255, 255, 255, .18) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(0, 0, 0, .04) 1px, transparent 1px),
+        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .55), transparent 30%),
+        radial-gradient(circle at 72% 40%, rgba(90, 80, 66, .13), transparent 34%),
+        linear-gradient(115deg, rgba(255, 255, 255, .28), transparent 44%),
+        repeating-linear-gradient(12deg, rgba(0, 0, 0, .035) 0 1px, transparent 1px 8px),
+        repeating-linear-gradient(96deg, rgba(255, 255, 255, .18) 0 1px, transparent 1px 13px),
         var(--bg);
-      background-size: 48px 48px, 48px 48px, auto;
       color: var(--ink);
-      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
     }
     .screen {
       position: relative;
       width: 100vw;
       height: 100vh;
       display: grid;
-      grid-template-rows: minmax(70px, 10vh) minmax(0, 1fr) minmax(68px, 9vh);
-      gap: 1vh;
-      padding: 2vh 3vw;
+      grid-template-rows: minmax(74px, 10vh) minmax(0, 1fr) minmax(176px, 30vh) minmax(56px, 8vh);
+      gap: 0;
+      padding: clamp(12px, 2vh, 26px) clamp(16px, 4vw, 74px);
+    }
+    .screen::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, .08), rgba(0, 0, 0, .05)),
+        repeating-radial-gradient(circle at 50% 50%, rgba(0, 0, 0, .03) 0 1px, transparent 1px 5px);
+      mix-blend-mode: multiply;
+      opacity: .6;
     }
     .hud {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 2vw;
-      padding: 0 1vw;
-      background: rgba(238, 231, 215, .84);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      box-shadow: 0 12px 28px rgba(67, 55, 38, .16);
+      padding: 0;
+      z-index: 1;
     }
     .team { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
     .team.right { justify-self: end; flex-direction: row-reverse; }
-    .bar { width: 10px; height: .8em; border-radius: 5px; align-self: center; }
-    .name { color: var(--muted); font-size: clamp(16px, 2.3vmin, 30px); font-weight: 850; letter-spacing: .08em; }
-    .score { font-size: clamp(38px, 6vmin, 86px); line-height: 1; font-weight: 950; }
+    .bar { width: 8px; height: .82em; align-self: center; }
+    .name {
+      color: var(--muted);
+      font-size: clamp(14px, 2vmin, 24px);
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, .62);
+    }
+    .score {
+      font-size: clamp(30px, 5vmin, 68px);
+      line-height: 1;
+      font-weight: 950;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, .72);
+    }
     .center { justify-self: center; text-align: center; display: grid; gap: .5vh; }
     .tag {
-      border: 1px solid rgba(42, 36, 28, .3);
-      border-radius: 4px;
-      padding: .45em 1em;
-      color: #fff7e8;
-      background: #1a1712;
+      padding: .2em .8em;
+      color: #101010;
+      background: transparent;
       font-size: clamp(13px, 1.8vmin, 22px);
       font-weight: 900;
       letter-spacing: .15em;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, .72);
     }
-    .clock { font-size: clamp(34px, 6.4vmin, 92px); line-height: .9; font-weight: 950; font-variant-numeric: tabular-nums; }
+    .clock {
+      font-size: clamp(34px, 6.4vmin, 86px);
+      line-height: .9;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 3px 0 rgba(255, 255, 255, .72);
+    }
     .stage {
       min-height: 0;
       display: grid;
-      grid-template-rows: minmax(0, 1fr) auto;
-      gap: 1.8vh;
-      align-items: center;
+      place-items: center;
+      z-index: 1;
     }
     .boardPanel, .piecePanel {
-      height: 100%;
-      min-height: 0;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: rgba(238, 231, 215, .9);
-      box-shadow: 0 22px 48px rgba(67, 55, 38, .18);
       display: grid;
       place-items: center;
-      padding: clamp(10px, 2.4vmin, 30px);
-    }
-    .piecePanel {
-      height: auto;
-      min-height: 118px;
-      padding: clamp(10px, 1.6vmin, 18px);
+      min-height: 0;
+      width: 100%;
     }
     .board {
       display: grid;
-      gap: clamp(2px, .35vmin, 4px);
-      padding: clamp(9px, 1.8vmin, 22px);
-      background: var(--paper);
-      border-radius: 6px;
-      border: 2px solid rgba(42, 36, 28, .3);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+      gap: 0;
+      background: transparent;
       touch-action: none;
+      filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .14));
     }
     .cell {
       width: var(--cell, 5vmin);
       height: var(--cell, 5vmin);
-      border-radius: 2px;
+      border-radius: 0;
       display: grid;
       place-items: center;
       font-size: calc(var(--cell, 5vmin) * .44);
       font-weight: 950;
       line-height: 1;
     }
-    .cell.on { background: var(--tile); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
-    .cell.preview { background: #d6bf7f; outline: 2px solid rgba(23, 20, 16, .72); }
-    .cell.badPreview { background: #9d2933; outline: 2px solid rgba(23, 20, 16, .72); }
+    .cell.on {
+      background: #f7f7f2;
+      border: 1.5px solid #5c5c5c;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .24);
+    }
+    .cell.preview {
+      background: #f7f7f2;
+      border: 2px solid var(--red);
+      box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px rgba(241, 59, 47, .26);
+    }
+    .cell.badPreview {
+      background: #181818;
+      border: 2px solid var(--red);
+      box-shadow: inset 0 0 0 2px rgba(241, 59, 47, .45);
+    }
     .cell.placed {
-      background: #f8f4e8;
-      color: #15120e;
-      border: 2px solid #15120e;
-      box-shadow: 0 2px 0 rgba(0, 0, 0, .16);
+      background: #f7f7f2;
+      color: #151515;
+      border: 1.5px solid #5c5c5c;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+    }
+    .cell.blocked {
+      background: var(--tile);
+      border: 1.5px solid #5c5c5c;
     }
     .cell.off { background: transparent; }
     .pieces {
       width: 100%;
-      display: grid;
-      grid-template-columns: repeat(6, minmax(70px, 1fr));
-      gap: clamp(8px, 1.2vmin, 14px);
-      align-items: center;
+      display: flex;
+      justify-content: center;
+      align-items: end;
+      gap: clamp(12px, 2.4vw, 42px);
+      padding: 0 2vw;
+      overflow: visible;
     }
     .pieceCard {
-      background: #f8f4e8;
-      color: #17110b;
-      border: 2px solid rgba(21, 18, 14, .72);
-      border-radius: 4px;
-      padding: clamp(6px, 1.1vmin, 12px);
+      position: relative;
+      color: #fff;
+      background: transparent;
+      border: 0;
+      padding: 0;
       display: grid;
-      grid-template-columns: auto 1fr;
-      gap: clamp(6px, 1vmin, 10px);
-      align-items: center;
-      min-height: 78px;
+      justify-items: center;
+      align-content: end;
+      min-width: calc(var(--piece-cols, 2) * var(--slot-cell, 32px) + 34px);
+      min-height: calc(var(--piece-rows, 2) * var(--slot-cell, 32px) + 58px);
       touch-action: none;
       user-select: none;
     }
-    .pieceCard.current { box-shadow: 0 0 0 4px rgba(155, 103, 33, .32); cursor: grab; }
-    .pieceCard.placed { opacity: .38; }
-    .pieceCard.locked { opacity: .28; filter: grayscale(.8); }
+    .pieceCard.current { cursor: grab; }
+    .pieceCard.current .pieceSlot {
+      box-shadow: 0 0 0 4px rgba(241, 59, 47, .18), 0 10px 18px rgba(0, 0, 0, .12);
+      background: rgba(255, 255, 255, .12);
+    }
+    .pieceCard.current .pieceNo { transform: translateY(-2px); }
+    .pieceCard.placed { opacity: .34; }
+    .pieceCard.locked { opacity: .62; }
     .pieceNo {
-      width: clamp(28px, 4vmin, 46px);
-      height: clamp(28px, 4vmin, 46px);
-      border-radius: 50%;
+      position: absolute;
+      top: 0;
+      width: clamp(48px, 6vmin, 76px);
+      height: clamp(34px, 4.6vmin, 54px);
       display: grid;
       place-items: center;
-      background: #171410;
-      color: #f8e8bd;
+      background: linear-gradient(180deg, #ff473a, var(--red));
+      color: #fff;
       font-weight: 950;
-      font-size: clamp(16px, 2.2vmin, 28px);
+      font-size: clamp(24px, 4.2vmin, 50px);
+      line-height: 1;
+      text-shadow: 0 2px 0 rgba(0, 0, 0, .22);
+      z-index: 2;
+    }
+    .pieceSlot {
+      margin-top: clamp(30px, 4.4vmin, 50px);
+      width: calc(var(--piece-cols, 2) * var(--slot-cell, 32px) + 24px);
+      height: calc(var(--piece-rows, 2) * var(--slot-cell, 32px) + 24px);
+      display: grid;
+      place-items: center;
+      border: clamp(3px, .5vmin, 6px) solid var(--red);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .04);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .34);
     }
     .piece { display: grid; gap: 3px; justify-content: start; }
-    .pCell { width: clamp(11px, 1.8vmin, 21px); height: clamp(11px, 1.8vmin, 21px); border-radius: 2px; }
-    .pCell.on { background: #171410; }
+    .pCell {
+      width: var(--mini-cell, clamp(18px, 2.8vmin, 38px));
+      height: var(--mini-cell, clamp(18px, 2.8vmin, 38px));
+      border-radius: 0;
+    }
+    .pCell.on {
+      background: #f7f7f2;
+      border: 2px solid #6c6c6c;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .62);
+    }
     .pCell.off { background: transparent; }
-    .footer { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2vw; }
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 2vw;
+      z-index: 2;
+    }
     .message {
-      justify-self: start;
+      grid-column: 2;
+      justify-self: center;
       max-width: 92vw;
-      text-align: left;
-      color: rgba(23, 20, 16, .76);
-      font-size: clamp(17px, 2.5vmin, 34px);
+      text-align: center;
+      color: #f8f8f5;
+      font-size: clamp(22px, 3.3vmin, 46px);
+      font-weight: 950;
       letter-spacing: .03em;
       line-height: 1.35;
+      text-shadow:
+        -2px -2px 0 #222,
+        2px -2px 0 #222,
+        -2px 2px 0 #222,
+        2px 2px 0 #222,
+        0 4px 8px rgba(0, 0, 0, .32);
     }
-    .tools { display: flex; align-items: center; justify-content: end; gap: 10px; flex-wrap: wrap; }
+    .tools {
+      grid-column: 3;
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      justify-content: end;
+      gap: 8px;
+      flex-wrap: wrap;
+      opacity: .7;
+    }
+    .tools:hover { opacity: 1; }
     .stepBadge {
-      min-width: 96px;
-      min-height: 42px;
+      min-width: 84px;
+      min-height: 38px;
       display: grid;
       place-items: center;
-      padding: 8px 14px;
-      border: 1px solid rgba(42, 36, 28, .3);
+      padding: 7px 12px;
+      border: 2px solid rgba(22, 22, 22, .72);
       border-radius: 4px;
-      background: #1a1712;
-      color: #fff7e8;
+      background: rgba(247, 247, 242, .7);
+      color: #151515;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
     }
     .toolBtn {
-      min-height: 42px;
-      border: 1px solid rgba(42, 36, 28, .3);
+      min-height: 38px;
+      border: 2px solid rgba(22, 22, 22, .72);
       border-radius: 4px;
-      background: rgba(238, 231, 215, .9);
+      background: rgba(247, 247, 242, .7);
       color: var(--ink);
-      font-weight: 850;
-      padding: 8px 12px;
+      font-weight: 950;
+      padding: 7px 10px;
       cursor: pointer;
     }
     .toolBtn:disabled { opacity: .38; cursor: not-allowed; }
@@ -198,11 +281,9 @@
       pointer-events: none;
       transform: translate(-50%, -50%);
       opacity: .86;
-      background: #f8f4e8;
-      border: 2px solid #171410;
-      border-radius: 4px;
-      padding: 8px;
-      box-shadow: 0 18px 42px rgba(23, 20, 16, .28);
+      background: transparent;
+      padding: 0;
+      filter: drop-shadow(0 14px 20px rgba(0, 0, 0, .3));
     }
     .result {
       position: fixed;
@@ -215,21 +296,21 @@
     }
     .judged .result { display: grid; }
     .resultBox {
-      border: 1px solid rgba(42, 36, 28, .32);
-      border-radius: 6px;
-      background: rgba(238, 231, 215, .94);
+      border: 4px solid var(--red);
+      border-radius: 8px;
+      background: rgba(238, 238, 232, .96);
       padding: clamp(24px, 4vmin, 56px);
       text-align: center;
       box-shadow: 0 32px 90px rgba(0, 0, 0, .58);
     }
     .resultTitle { color: #171410; font-size: clamp(38px, 7vmin, 96px); font-weight: 950; letter-spacing: .12em; }
     .resultSteps { margin-top: 14px; color: var(--muted); font-size: clamp(18px, 2.4vmin, 30px); }
-    .launcher { position: fixed; right: 18px; bottom: 16px; display: flex; gap: 10px; opacity: .32; z-index: 8; }
+    .launcher { position: fixed; right: 18px; top: 16px; display: flex; gap: 10px; opacity: .22; z-index: 8; }
     .launcher:hover { opacity: 1; }
     .launcher a, .launcher button {
       border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(238, 231, 215, .86);
+      border-radius: 4px;
+      background: rgba(247, 247, 242, .86);
       color: var(--ink);
       text-decoration: none;
       padding: 9px 12px;
@@ -240,10 +321,10 @@
     @media (max-aspect-ratio: 1/1) {
       .screen { overflow: auto; height: auto; min-height: 100vh; }
       html, body { overflow: auto; }
-      .pieces { grid-template-columns: repeat(3, minmax(86px, 1fr)); }
+      .pieces { flex-wrap: wrap; gap: 18px; }
       .footer { grid-template-columns: 1fr; }
-      .message { text-align: center; justify-self: center; }
-      .tools { justify-content: center; }
+      .message { grid-column: 1; }
+      .tools { grid-column: 1; justify-content: center; justify-self: center; }
     }
   </style>
 </head>
@@ -257,14 +338,14 @@
 
     <section class="stage">
       <div class="boardPanel"><div class="board" id="board"></div></div>
-      <div class="piecePanel"><div class="pieces" id="pieces"></div></div>
     </section>
+    <section class="piecePanel"><div class="pieces" id="pieces"></div></section>
 
     <footer class="footer">
       <div class="message" id="message">打开主持人控制台，开始比赛。</div>
       <div class="tools">
         <div class="stepBadge" id="localStep">Step 0</div>
-        <button class="toolBtn" id="rotate">旋转</button>
+        <button class="toolBtn" id="rotate">↻</button>
         <button class="toolBtn" id="undo">撤回</button>
         <button class="toolBtn" id="clear">清空</button>
       </div>
@@ -293,6 +374,7 @@
     let work = freshWork();
     let hover = null;
     let drag = null;
+    let dragInfo = null;
 
     function load() {
       try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
@@ -421,6 +503,13 @@
       return grid;
     }
 
+    function pieceBounds(rows) {
+      return {
+        cols: Math.max(...rows.map(r => r.length)),
+        rows: rows.length,
+      };
+    }
+
     function drawPuzzle() {
       ensureWork();
       const key = state.puzzle ? `${state.puzzle.id}:${state.phase}:${JSON.stringify(work.placements)}:${work.rotation}:${hover ? `${hover.x},${hover.y}` : ''}` : '';
@@ -453,6 +542,8 @@
             d.textContent = placedNo;
           } else if (row[x] === '#') {
             d.className = `cell ${previewKeys.has(`${x},${y}`) ? (preview.ok ? 'preview' : 'badPreview') : 'on'}`;
+          } else if (x < row.length && row[x] === '.') {
+            d.className = 'cell blocked';
           } else {
             d.className = 'cell off';
           }
@@ -470,8 +561,16 @@
         const activePiece = i === next && state.phase === 'solving'
           ? C.orientations(piece)[work.rotation % C.orientations(piece).length].rows
           : piece;
-        const grid = drawPieceGrid(activePiece, 'pCell');
-        card.append(no, grid);
+        const bounds = pieceBounds(activePiece);
+        const trayCell = Math.max(16, Math.min(36, Math.floor((innerWidth * .74) / Math.max(10, state.puzzle.pieces.length * 4.4))));
+        card.style.setProperty('--piece-cols', String(bounds.cols));
+        card.style.setProperty('--piece-rows', String(bounds.rows));
+        card.style.setProperty('--slot-cell', `${trayCell}px`);
+        card.style.setProperty('--mini-cell', `${trayCell}px`);
+        const slot = document.createElement('div');
+        slot.className = 'pieceSlot';
+        slot.appendChild(drawPieceGrid(activePiece, 'pCell'));
+        card.append(no, slot);
         E.pieces.appendChild(card);
       });
     }
@@ -526,6 +625,7 @@
       const rows = C.orientations(state.puzzle.pieces[index])[work.rotation % C.orientations(state.puzzle.pieces[index]).length].rows;
       drag.appendChild(drawPieceGrid(rows, 'pCell'));
       document.body.appendChild(drag);
+      dragInfo = { startX: event.clientX, startY: event.clientY };
       moveDrag(event);
       document.addEventListener('pointermove', moveDrag);
       document.addEventListener('pointerup', endDrag, { once: true });
@@ -542,11 +642,27 @@
 
     function endDrag(event) {
       const target = boardCellFromPoint(event.clientX, event.clientY);
+      const moved = dragInfo ? Math.hypot(event.clientX - dragInfo.startX, event.clientY - dragInfo.startY) : 0;
       if (drag) drag.remove();
       drag = null;
+      dragInfo = null;
       document.removeEventListener('pointermove', moveDrag);
       if (target && placeAt(target.x, target.y)) return;
+      if (moved < 10) {
+        rotateCurrent();
+        return;
+      }
       hover = null;
+      lastPuzzleKey = '';
+      render();
+    }
+
+    function rotateCurrent() {
+      if (!state.puzzle || state.phase !== 'solving') return;
+      const index = nextIndex();
+      if (index >= state.puzzle.pieces.length) return;
+      work.rotation = (work.rotation + 1) % C.orientations(state.puzzle.pieces[index]).length;
+      saveWork();
       lastPuzzleKey = '';
       render();
     }
@@ -556,10 +672,7 @@
       if (card) beginDrag(event, card);
     });
     E.board.addEventListener('pointermove', event => {
-      if (drag) return;
-      hover = boardCellFromPoint(event.clientX, event.clientY);
-      lastPuzzleKey = '';
-      render();
+      if (!drag) return;
     });
     E.board.addEventListener('pointerleave', () => {
       if (drag) return;
@@ -572,13 +685,7 @@
       if (target) placeAt(target.x, target.y);
     });
     E.rotate.onclick = () => {
-      if (!state.puzzle || state.phase !== 'solving') return;
-      const index = nextIndex();
-      if (index >= state.puzzle.pieces.length) return;
-      work.rotation = (work.rotation + 1) % C.orientations(state.puzzle.pieces[index]).length;
-      saveWork();
-      lastPuzzleKey = '';
-      render();
+      rotateCurrent();
     };
     E.undo.onclick = () => {
       if (!state.puzzle || state.phase !== 'solving' || work.placements.length === 0) return;
