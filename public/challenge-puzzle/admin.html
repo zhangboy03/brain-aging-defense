@@ -142,6 +142,27 @@
     .teamScore { font-size: 52px; line-height: 1; font-weight: 950; margin-bottom: 10px; }
     .resultLine { min-height: 26px; color: var(--muted); font-size: 13px; }
     .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; color: var(--gold); font-weight: 800; }
+    .modeBox {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #00000038;
+      padding: 12px;
+    }
+    .modeTitle { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .modeTitle b { font-size: 14px; }
+    .modeBadge {
+      display: inline-grid;
+      place-items: center;
+      min-height: 26px;
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: #ffffff12;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .modeBadge.live { color: #1a1205; background: var(--gold); }
     .answer {
       display: grid;
       gap: 2px;
@@ -182,6 +203,15 @@
   <aside class="panel">
     <section class="sec stack">
       <h2>题目设置</h2>
+      <div class="modeBox">
+        <div class="modeTitle"><b>题库模式</b><span class="modeBadge" id="modeBadge">练习题</span></div>
+        <div class="hint" id="modeHint">默认只显示自制练习题。</div>
+        <div class="g2" style="margin-top:10px">
+          <input id="competitionPassword" type="password" autocomplete="off" placeholder="比赛题密码">
+          <button id="competitionUnlock">解锁比赛题</button>
+        </div>
+        <button id="competitionLock" style="width:100%;margin-top:10px">退出比赛模式</button>
+      </div>
       <p><label>题目</label><select id="puzzle"></select></p>
       <p><label>统一答题时间（秒）</label><input id="seconds" type="number" min="30" max="600" value="180"></p>
       <button class="primary" id="start">开始同时答题</button>
@@ -261,24 +291,42 @@
     message: $('message'), thuScore: $('thuScore'), pkuScore: $('pkuScore'), thuStep: $('thuStep'), pkuStep: $('pkuStep'),
     thuSave: $('thuSave'), pkuSave: $('pkuSave'), thuResult: $('thuResult'), pkuResult: $('pkuResult'), next: $('next'),
     answer: $('answer'), backendTop: $('backendTop'), backendUrl: $('backendUrl'), backendSave: $('backendSave'),
-    backendClear: $('backendClear'), backendState: $('backendState')
+    backendClear: $('backendClear'), backendState: $('backendState'), modeBadge: $('modeBadge'), modeHint: $('modeHint'),
+    competitionPassword: $('competitionPassword'), competitionUnlock: $('competitionUnlock'), competitionLock: $('competitionLock')
   };
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel(CHANNEL) : null;
+  const COMPETITION_STORAGE = 'challenge-puzzle:v1:competition-mode';
   let sync = null;
   let state = load() || C.freshState();
+  let competitionMode = localStorage.getItem(COMPETITION_STORAGE) === '1';
+  if (!competitionMode && C.isCompetitionPuzzle(state.puzzle)) state = C.freshState();
 
-  C.PUZZLES.forEach((p, i) => {
-    const opt = document.createElement('option');
-    opt.value = String(i);
-    opt.textContent = `${i + 1}. ${p.title}（上限 Step ${p.maxStep}）`;
-    E.puzzle.appendChild(opt);
-  });
+  function currentPool() {
+    return C.availablePuzzles(competitionMode);
+  }
+
+  function populatePuzzles(preferredId) {
+    const pool = currentPool();
+    const currentId = preferredId || (E.puzzle && E.puzzle.value) || (state.puzzle && state.puzzle.id) || '';
+    E.puzzle.innerHTML = '';
+    pool.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${i + 1}. ${p.title}（上限 Step ${p.maxStep}）`;
+      E.puzzle.appendChild(opt);
+    });
+    if (pool.some(p => p.id === currentId)) E.puzzle.value = currentId;
+    else if (pool[0]) E.puzzle.value = pool[0].id;
+  }
+
+  populatePuzzles();
 
   function load() {
     try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
   }
 
   function publish() {
+    state.competitionMode = competitionMode;
     localStorage.setItem(STORAGE, JSON.stringify(state));
     if (bc) bc.postMessage(state);
     if (sync) sync.pushState(state);
@@ -309,7 +357,7 @@
   }
 
   function selectedPuzzle() {
-    return C.PUZZLES[Number(E.puzzle.value) || 0];
+    return currentPool().find(p => p.id === E.puzzle.value) || currentPool()[0];
   }
 
   function drawShape(el, rows, cellClass, activeClass) {
@@ -384,7 +432,14 @@
     E.finish.disabled = state.phase !== 'solving';
     E.thuSave.disabled = E.pkuSave.disabled = state.phase !== 'scoring';
     E.next.disabled = state.phase !== 'judged';
-    E.start.disabled = state.phase === 'solving';
+    E.start.disabled = state.phase === 'solving' || !selectedPuzzle();
+    E.modeBadge.textContent = competitionMode ? '比赛题' : '练习题';
+    E.modeBadge.className = `modeBadge ${competitionMode ? 'live' : ''}`;
+    E.modeHint.textContent = competitionMode
+      ? '比赛模式已开启：当前下拉框只显示节目复刻题。'
+      : '练习模式：当前下拉框只显示自制练习题。';
+    E.competitionLock.disabled = !competitionMode || state.phase === 'solving';
+    E.competitionUnlock.disabled = competitionMode || state.phase === 'solving';
     drawPuzzle();
   }
 
@@ -419,6 +474,25 @@
     window.open(`index.html${backend}`, 'challenge_puzzle_display');
   };
   E.puzzle.onchange = () => { if (!state.puzzle) render(); };
+  E.competitionUnlock.onclick = () => {
+    if (E.competitionPassword.value.trim() !== C.COMPETITION_PASSWORD) {
+      E.modeHint.textContent = '密码不正确，仍停留在练习题。';
+      E.competitionPassword.select();
+      return;
+    }
+    competitionMode = true;
+    localStorage.setItem(COMPETITION_STORAGE, '1');
+    populatePuzzles();
+    E.competitionPassword.value = '';
+    publish();
+  };
+  E.competitionLock.onclick = () => {
+    if (state.phase === 'solving') return;
+    competitionMode = false;
+    localStorage.removeItem(COMPETITION_STORAGE);
+    populatePuzzles();
+    publish();
+  };
   E.backendSave.onclick = () => {
     const value = E.backendUrl.value.trim().replace(/\/+$/, '');
     if (value) localStorage.setItem('sync_backend', value);
@@ -429,7 +503,8 @@
     location.reload();
   };
   E.start.onclick = () => {
-    const puzzle = C.PUZZLES[Number(E.puzzle.value) || 0];
+    const puzzle = selectedPuzzle();
+    if (!puzzle) return;
     const duration = Math.max(30, Math.min(600, Number(E.seconds.value) || 180)) * 1000;
     C.startRound(state, puzzle, duration);
     publish();
@@ -437,8 +512,10 @@
   E.finish.onclick = () => { if (C.finishSolving(state)) publish(); };
   E.reset.onclick = () => { state = C.freshState(); publish(); };
   E.next.onclick = () => {
-    const nextIndex = state.puzzle ? (C.PUZZLES.findIndex(p => p.id === state.puzzle.id) + 1) % C.PUZZLES.length : 0;
-    E.puzzle.value = String(nextIndex);
+    const pool = currentPool();
+    const current = state.puzzle ? pool.findIndex(p => p.id === state.puzzle.id) : -1;
+    const nextIndex = pool.length ? (current + 1 + pool.length) % pool.length : 0;
+    if (pool[nextIndex]) E.puzzle.value = pool[nextIndex].id;
     E.start.click();
   };
   E.thuSave.onclick = () => { if (C.recordResult(state, 'thu', E.thuStep.value)) publish(); };

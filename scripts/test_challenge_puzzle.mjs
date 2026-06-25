@@ -33,6 +33,17 @@ test('puzzle pack has proven max steps and answer grids', () => {
   }
 });
 
+test('practice and competition puzzle pools are separated', () => {
+  const practice = C.availablePuzzles(false);
+  const competition = C.availablePuzzles(true);
+
+  assert.ok(practice.length > 0);
+  assert.ok(competition.length > 0);
+  assert.ok(practice.every(puzzle => !C.isCompetitionPuzzle(puzzle)));
+  assert.ok(competition.every(puzzle => C.isCompetitionPuzzle(puzzle)));
+  assert.equal(new Set([...practice, ...competition]).size, C.PUZZLES.length);
+});
+
 test('results are rejected before the solve timer ends', () => {
   const state = C.freshState();
   C.startRound(state, C.PUZZLES[0], 180000);

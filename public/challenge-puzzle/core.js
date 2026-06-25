@@ -3,6 +3,7 @@
     thu: '清华',
     pku: '北大',
   };
+  const COMPETITION_PASSWORD = 'qingbei2026';
 
   const PUZZLES = [
     {
@@ -422,9 +423,18 @@
     return JSON.parse(JSON.stringify(puzzle));
   }
 
+  function isCompetitionPuzzle(puzzle) {
+    return Boolean(puzzle && typeof puzzle.id === 'string' && puzzle.id.startsWith('show-'));
+  }
+
+  function availablePuzzles(competitionMode) {
+    return PUZZLES.filter(puzzle => isCompetitionPuzzle(puzzle) === Boolean(competitionMode));
+  }
+
   function freshState() {
     return {
       phase: 'idle',
+      competitionMode: false,
       round: 0,
       durationMs: 180000,
       startedAt: 0,
@@ -439,6 +449,7 @@
 
   function startRound(state, puzzle, durationMs, now) {
     state.phase = 'solving';
+    state.competitionMode = isCompetitionPuzzle(puzzle);
     state.round += 1;
     state.durationMs = Math.max(1000, Number(durationMs) || 180000);
     state.startedAt = Number(now) || Date.now();
@@ -495,6 +506,9 @@
   window.ChallengePuzzle = {
     TEAMS,
     PUZZLES,
+    COMPETITION_PASSWORD,
+    isCompetitionPuzzle,
+    availablePuzzles,
     shapeToCells,
     orientations,
     findSolution,
