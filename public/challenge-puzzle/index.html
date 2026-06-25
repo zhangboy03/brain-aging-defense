@@ -36,9 +36,9 @@
       width: 100vw;
       height: 100vh;
       display: grid;
-      grid-template-rows: minmax(74px, 10vh) minmax(0, 1fr) minmax(176px, 30vh) minmax(56px, 8vh);
-      gap: 0;
-      padding: clamp(12px, 2vh, 26px) clamp(16px, 4vw, 74px);
+      grid-template-rows: minmax(74px, 10vh) minmax(0, 1fr) minmax(172px, 27vh) auto;
+      gap: clamp(8px, 1.2vh, 14px);
+      padding: clamp(12px, 2vh, 26px) clamp(16px, 4vw, 74px) calc(clamp(12px, 2vh, 22px) + env(safe-area-inset-bottom));
     }
     .screen::after {
       content: "";
@@ -153,8 +153,14 @@
       justify-content: center;
       align-items: end;
       gap: clamp(12px, 2.4vw, 42px);
-      padding: 0 2vw;
-      overflow: visible;
+      padding: 4px 2vw 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
+    .pieces::-webkit-scrollbar { display: none; }
+    .pieces.manyPieces {
+      justify-content: flex-start;
     }
     .pieceCard {
       position: relative;
@@ -218,21 +224,21 @@
     .pCell.off { background: transparent; }
     .footer {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: minmax(0, 1fr);
       align-items: center;
-      gap: 2vw;
+      justify-items: center;
+      gap: clamp(8px, 1.3vh, 14px);
       z-index: 2;
     }
     .message {
-      grid-column: 2;
       justify-self: center;
       max-width: 92vw;
       text-align: center;
       color: #f8f8f5;
-      font-size: clamp(22px, 3.3vmin, 46px);
+      font-size: clamp(18px, 2.8vmin, 38px);
       font-weight: 950;
       letter-spacing: .03em;
-      line-height: 1.35;
+      line-height: 1.2;
       text-shadow:
         -2px -2px 0 #222,
         2px -2px 0 #222,
@@ -241,38 +247,53 @@
         0 4px 8px rgba(0, 0, 0, .32);
     }
     .tools {
-      grid-column: 3;
-      justify-self: end;
-      display: flex;
+      width: min(760px, 100%);
+      min-height: 82px;
+      display: grid;
+      grid-template-columns: minmax(102px, .85fr) repeat(3, minmax(112px, 1fr));
       align-items: center;
-      justify-content: end;
-      gap: 8px;
-      flex-wrap: wrap;
-      opacity: .7;
+      justify-content: center;
+      gap: clamp(8px, 1.2vw, 14px);
+      padding: clamp(8px, 1.2vmin, 12px);
+      border: 3px solid rgba(18, 18, 18, .78);
+      border-radius: 8px;
+      background: rgba(244, 244, 241, .86);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, .16), inset 0 0 0 1px rgba(255, 255, 255, .74);
+      opacity: 1;
     }
-    .tools:hover { opacity: 1; }
     .stepBadge {
-      min-width: 84px;
-      min-height: 38px;
+      min-width: 0;
+      min-height: 60px;
       display: grid;
       place-items: center;
-      padding: 7px 12px;
+      padding: 10px 14px;
       border: 2px solid rgba(22, 22, 22, .72);
       border-radius: 4px;
-      background: rgba(247, 247, 242, .7);
-      color: #151515;
+      background: #151515;
+      color: #f7f7f2;
+      font-size: clamp(18px, 2.3vmin, 26px);
       font-weight: 950;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 0 rgba(0, 0, 0, .24);
     }
     .toolBtn {
-      min-height: 38px;
-      border: 2px solid rgba(22, 22, 22, .72);
+      min-width: 0;
+      min-height: 60px;
+      border: 3px solid rgba(22, 22, 22, .86);
       border-radius: 4px;
-      background: rgba(247, 247, 242, .7);
+      background: #f7f7f2;
       color: var(--ink);
       font-weight: 950;
-      padding: 7px 10px;
+      padding: 10px 12px;
       cursor: pointer;
+      font-size: clamp(18px, 2.2vmin, 26px);
+      line-height: 1;
+      box-shadow: 0 4px 0 rgba(22, 22, 22, .72);
+      white-space: nowrap;
+    }
+    .toolBtn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(22, 22, 22, .72);
     }
     .toolBtn:disabled { opacity: .38; cursor: not-allowed; }
     .ghost {
@@ -319,12 +340,36 @@
     }
     :fullscreen .launcher { display: none; }
     @media (max-aspect-ratio: 1/1) {
-      .screen { overflow: auto; height: auto; min-height: 100vh; }
+      .screen {
+        overflow: auto;
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto auto auto auto;
+        padding-inline: clamp(12px, 3vw, 28px);
+      }
       html, body { overflow: auto; }
-      .pieces { flex-wrap: wrap; gap: 18px; }
-      .footer { grid-template-columns: 1fr; }
-      .message { grid-column: 1; }
-      .tools { grid-column: 1; justify-content: center; justify-self: center; }
+      .pieces {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 14px;
+        max-height: none;
+        overflow: visible;
+      }
+      .tools {
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+      }
+      .stepBadge {
+        grid-column: 1 / -1;
+      }
+      #clear {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 560px) {
+      .tools {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -345,8 +390,8 @@
       <div class="message" id="message">打开主持人控制台，开始比赛。</div>
       <div class="tools">
         <div class="stepBadge" id="localStep">Step 0</div>
-        <button class="toolBtn" id="rotate">↻</button>
-        <button class="toolBtn" id="undo">撤回</button>
+        <button class="toolBtn" id="rotate">↻ 旋转</button>
+        <button class="toolBtn" id="undo">上一步</button>
         <button class="toolBtn" id="clear">清空</button>
       </div>
     </footer>
@@ -517,7 +562,9 @@
       lastPuzzleKey = key;
       E.board.innerHTML = '';
       E.pieces.innerHTML = '';
+      E.pieces.classList.remove('manyPieces');
       if (!state.puzzle) return;
+      E.pieces.classList.toggle('manyPieces', state.puzzle.pieces.length > 8);
       const rows = state.puzzle.board;
       const answer = state.phase === 'judged' ? C.answerGrid(state.puzzle, state.puzzle.maxStep) : null;
       const cols = Math.max(...rows.map(r => r.length));
