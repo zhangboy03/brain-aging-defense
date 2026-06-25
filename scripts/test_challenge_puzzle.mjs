@@ -27,7 +27,9 @@ test('puzzle pack has proven max steps and answer grids', () => {
     assert.ok(C.upperBoundStep(puzzle) >= puzzle.maxStep, `${puzzle.id} upper bound`);
     assert.equal(C.maxAchievableStep(puzzle), puzzle.maxStep, `${puzzle.id} max step`);
     assert.ok(C.answerGrid(puzzle, puzzle.maxStep), `${puzzle.id} has an answer`);
-    assert.equal(C.findSolution(puzzle, puzzle.maxStep + 1), null, `${puzzle.id} rejects one higher step`);
+    if (puzzle.maxStep < puzzle.pieces.length) {
+      assert.equal(C.findSolution(puzzle, puzzle.maxStep + 1), null, `${puzzle.id} rejects one higher step`);
+    }
   }
 });
 
