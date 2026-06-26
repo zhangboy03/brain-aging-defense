@@ -344,7 +344,26 @@
       font-size: 13px;
       cursor: pointer;
     }
+    .playerMark {
+      position: fixed;
+      left: 18px;
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      z-index: 8;
+      min-height: 32px;
+      display: grid;
+      place-items: center;
+      padding: 6px 12px;
+      border: 2px solid rgba(22, 22, 22, .72);
+      border-radius: 4px;
+      background: rgba(247, 247, 242, .84);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      opacity: .46;
+    }
     :fullscreen .launcher { display: none; }
+    :fullscreen .playerMark { display: none; }
     @media (max-aspect-ratio: 1/1) {
       .screen {
         min-height: 100vh;
@@ -403,13 +422,17 @@
   </main>
   <div class="result"><div class="resultBox"><div class="resultTitle" id="resultTitle">--</div><div class="resultSteps" id="resultSteps"></div></div></div>
   <div class="launcher"><a href="admin.html" target="_blank">控制台</a><button id="full">全屏</button></div>
+  <div class="playerMark" id="playerMark">未选择队伍</div>
 
   <script src="core.js"></script>
   <script src="../sync.js"></script>
   <script>
   (() => {
     const ROOM = 'challenge-puzzle';
+    const PROGRESS_ROOM_PREFIX = 'challenge-puzzle-progress-';
     const STORAGE = 'challenge-puzzle:v1:state';
+    const PROGRESS_STORAGE_PREFIX = 'challenge-puzzle:v1:progress:';
+    const TEAM_STORAGE = 'challenge-puzzle:v1:team';
     const CHANNEL = 'challenge-puzzle-v1';
     const C = window.ChallengePuzzle;
     const $ = id => document.getElementById(id);
@@ -417,8 +440,11 @@
       thuScore: $('thuScore'), pkuScore: $('pkuScore'), phase: $('phase'), clock: $('clock'),
       board: $('board'), pieces: $('pieces'), message: $('message'), resultTitle: $('resultTitle'),
       resultSteps: $('resultSteps'), full: $('full'), localStep: $('localStep'), rotate: $('rotate'),
-      undo: $('undo'), clear: $('clear')
+      undo: $('undo'), clear: $('clear'), playerMark: $('playerMark')
     };
+    const TEAM_LABELS = { thu: '清华', pku: '北大' };
+    const TEAM = readTeam();
+    let progressSync = null;
     let state = load() || C.freshState();
     let lastPuzzleKey = '';
     let work = freshWork();
@@ -430,10 +456,25 @@
       try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
     }
 
+    function readTeam() {
+      let value = '';
+      try {
+        const queryTeam = new URLSearchParams(location.search).get('team');
+        if (queryTeam === 'thu' || queryTeam === 'pku') {
+          localStorage.setItem(TEAM_STORAGE, queryTeam);
+          value = queryTeam;
+        } else {
+          value = localStorage.getItem(TEAM_STORAGE) || '';
+        }
+      } catch (_) {}
+      return value === 'thu' || value === 'pku' ? value : '';
+    }
+
     function accept(next) {
       state = next || C.freshState();
       localStorage.setItem(STORAGE, JSON.stringify(state));
       ensureWork();
+      publishProgress();
       render();
     }
 
@@ -467,6 +508,29 @@
     function saveWork() {
       const key = workKey();
       if (key) localStorage.setItem(key, JSON.stringify(work));
+      publishProgress();
+    }
+
+    function progressSnapshot() {
+      return {
+        team: TEAM,
+        round: state.round || 0,
+        puzzleId: state.puzzle ? state.puzzle.id : '',
+        phase: state.phase || 'idle',
+        placements: work.placements || [],
+        rotation: work.rotation || 0,
+        step: state.puzzle ? nextIndex() : 0,
+        updatedAt: Date.now(),
+      };
+    }
+
+    function publishProgress() {
+      if (!TEAM) return;
+      const snapshot = progressSnapshot();
+      try { localStorage.setItem(PROGRESS_STORAGE_PREFIX + TEAM, JSON.stringify(snapshot)); } catch (_) {}
+      if (progressSync && state.puzzle) {
+        progressSync.pushState(snapshot).catch(() => {});
+      }
     }
 
     function timeLeft() {
@@ -645,6 +709,8 @@
         ? ''
         : `清华 Step ${state.results.thu} / 北大 Step ${state.results.pku}`;
       E.localStep.textContent = `Step ${state.puzzle ? nextIndex() : 0}`;
+      E.playerMark.textContent = TEAM ? `${TEAM_LABELS[TEAM]}选手端` : '未选择队伍';
+      E.playerMark.style.borderColor = TEAM === 'thu' ? 'var(--thu)' : TEAM === 'pku' ? 'var(--pku)' : 'rgba(22, 22, 22, .72)';
       E.rotate.disabled = E.undo.disabled = E.clear.disabled = state.phase !== 'solving' || !state.puzzle;
       drawPuzzle();
     }
@@ -812,7 +878,13 @@
       const bc = new BroadcastChannel(CHANNEL);
       bc.onmessage = e => accept(e.data);
     }
-    if (window.Sync && Sync.BACKEND) Sync.display(ROOM, accept);
+    if (window.Sync && Sync.BACKEND) {
+      Sync.display(ROOM, accept);
+      if (TEAM) {
+        progressSync = Sync.console(`${PROGRESS_ROOM_PREFIX}${TEAM}`);
+        publishProgress();
+      }
+    }
 
     setInterval(render, 250);
     window.addEventListener('resize', () => { lastPuzzleKey = ''; render(); });
@@ -828,6 +900,7 @@
       else document.documentElement.requestFullscreen?.();
     };
     document.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'f') E.full.click(); });
+    publishProgress();
     render();
   })();
   </script>

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>挑战拼图｜观众页</title>
+  <style>
+    :root {
+      --bg: #0d0b08;
+      --ink: #f8f3e8;
+      --muted: rgba(248, 243, 232, .62);
+      --line: rgba(232, 205, 147, .22);
+      --paper: #d8d2c6;
+      --tile: #111;
+      --thu: #6f5bd2;
+      --pku: #c12639;
+      --gold: #d9b15f;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background:
+        radial-gradient(circle at 18% 14%, rgba(193, 38, 57, .2), transparent 28%),
+        radial-gradient(circle at 84% 14%, rgba(111, 91, 210, .24), transparent 30%),
+        linear-gradient(90deg, rgba(217, 177, 95, .05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(217, 177, 95, .04) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, auto, 44px 44px, 44px 44px, auto;
+      color: var(--ink);
+      font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .screen {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(12px, 2vh, 24px);
+      padding: clamp(16px, 2.5vh, 32px);
+    }
+    .hud {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+    .brand {
+      color: var(--muted);
+      font-size: clamp(13px, 1.45vw, 22px);
+      letter-spacing: .16em;
+    }
+    .center {
+      text-align: center;
+      display: grid;
+      gap: 4px;
+    }
+    .phase {
+      color: var(--gold);
+      font-size: clamp(14px, 1.4vw, 24px);
+      letter-spacing: .16em;
+    }
+    .clock {
+      font-size: clamp(48px, 7vw, 112px);
+      line-height: .88;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 4px 0 rgba(0, 0, 0, .42);
+    }
+    .score {
+      justify-self: end;
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+      color: var(--muted);
+      font-size: clamp(14px, 1.4vw, 22px);
+    }
+    .score b {
+      color: var(--ink);
+      font-size: clamp(38px, 5.5vw, 82px);
+      line-height: 1;
+    }
+    .arena {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: clamp(14px, 2vw, 30px);
+    }
+    .side {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: clamp(10px, 1.8vh, 18px);
+      padding: clamp(14px, 2vw, 28px);
+      border: 2px solid var(--line);
+      border-top: 8px solid var(--team);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 50% 14%, color-mix(in srgb, var(--team) 20%, transparent), transparent 36%),
+        rgba(255, 255, 255, .045);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, .42);
+    }
+    .sideHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+    }
+    .teamName {
+      font-size: clamp(34px, 5vw, 86px);
+      line-height: 1;
+      letter-spacing: .08em;
+    }
+    .step {
+      min-width: 120px;
+      padding: 10px 16px;
+      border: 2px solid rgba(248, 243, 232, .72);
+      border-radius: 4px;
+      text-align: center;
+      font-size: clamp(18px, 2vw, 34px);
+      font-variant-numeric: tabular-nums;
+    }
+    .boardWrap {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(10px, 1.5vw, 18px);
+      background:
+        radial-gradient(circle at 34% 20%, rgba(255,255,255,.56), transparent 34%),
+        repeating-linear-gradient(14deg, rgba(0,0,0,.035) 0 1px, transparent 1px 8px),
+        var(--paper);
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 8px;
+    }
+    .board {
+      display: grid;
+      gap: 0;
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .2));
+    }
+    .cell {
+      width: var(--cell, 42px);
+      height: var(--cell, 42px);
+      display: grid;
+      place-items: center;
+      color: #151515;
+      font-size: calc(var(--cell, 42px) * .45);
+      font-weight: 950;
+      line-height: 1;
+    }
+    .cell.on, .cell.placed {
+      background: #f7f7f2;
+      border: 2px solid #666;
+    }
+    .cell.placed {
+      background: color-mix(in srgb, var(--team) 18%, #f7f7f2);
+      box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--team) 42%, transparent);
+    }
+    .cell.blocked {
+      background: var(--tile);
+      border: 2px solid #666;
+    }
+    .cell.off { background: transparent; }
+    .foot {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 72px;
+    }
+    .status {
+      color: var(--muted);
+      font-size: clamp(13px, 1.2vw, 18px);
+      line-height: 1.4;
+    }
+    .nextPiece {
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      min-width: 116px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, .22);
+    }
+    .nextLabel {
+      color: var(--gold);
+      font-size: 12px;
+      letter-spacing: .12em;
+    }
+    .piece { display: grid; gap: 2px; }
+    .pCell {
+      width: var(--mini, 16px);
+      height: var(--mini, 16px);
+    }
+    .pCell.on {
+      background: #f7f7f2;
+      border: 1px solid #777;
+    }
+    .pCell.off { background: transparent; }
+    .empty {
+      color: rgba(20, 20, 20, .62);
+      font-size: clamp(22px, 2.4vw, 38px);
+      letter-spacing: .08em;
+    }
+    .launcher {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      gap: 10px;
+      opacity: .22;
+      z-index: 10;
+    }
+    .launcher:hover { opacity: 1; }
+    .launcher a, .launcher button {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: rgba(13, 11, 8, .78);
+      color: var(--ink);
+      text-decoration: none;
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    :fullscreen .launcher { display: none; }
+    @media (max-width: 900px) {
+      html, body { overflow-y: auto; }
+      .screen { height: auto; min-height: 100vh; }
+      .arena { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="screen">
+    <header class="hud">
+      <div class="brand">CHALLENGE PUZZLE</div>
+      <div class="center">
+        <div class="phase" id="phase">WAITING</div>
+        <div class="clock" id="clock">--:--</div>
+      </div>
+      <div class="score"><span id="scoreText">北大 0 · 清华 0</span></div>
+    </header>
+
+    <section class="arena">
+      <article class="side" style="--team:var(--pku)" data-team="pku">
+        <div class="sideHead">
+          <div class="teamName">北大</div>
+          <div class="step" id="pkuStep">Step 0</div>
+        </div>
+        <div class="boardWrap"><div class="board" id="pkuBoard"></div></div>
+        <div class="foot">
+          <div class="status" id="pkuStatus">等待北大 iPad 上报。</div>
+          <div class="nextPiece"><div class="nextLabel">NEXT</div><div id="pkuNext"></div></div>
+        </div>
+      </article>
+
+      <article class="side" style="--team:var(--thu)" data-team="thu">
+        <div class="sideHead">
+          <div class="teamName">清华</div>
+          <div class="step" id="thuStep">Step 0</div>
+        </div>
+        <div class="boardWrap"><div class="board" id="thuBoard"></div></div>
+        <div class="foot">
+          <div class="status" id="thuStatus">等待清华 iPad 上报。</div>
+          <div class="nextPiece"><div class="nextLabel">NEXT</div><div id="thuNext"></div></div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <div class="launcher"><a href="admin.html" target="_blank">控制台</a><button id="full">全屏</button></div>
+
+  <script src="core.js"></script>
+  <script src="../sync.js"></script>
+  <script>
+  (() => {
+    const ROOM = 'challenge-puzzle';
+    const PROGRESS_ROOM_PREFIX = 'challenge-puzzle-progress-';
+    const STORAGE = 'challenge-puzzle:v1:state';
+    const PROGRESS_STORAGE_PREFIX = 'challenge-puzzle:v1:progress:';
+    const C = window.ChallengePuzzle;
+    const $ = id => document.getElementById(id);
+    const E = {
+      phase: $('phase'), clock: $('clock'), scoreText: $('scoreText'), full: $('full'),
+      pkuBoard: $('pkuBoard'), thuBoard: $('thuBoard'), pkuStep: $('pkuStep'), thuStep: $('thuStep'),
+      pkuStatus: $('pkuStatus'), thuStatus: $('thuStatus'), pkuNext: $('pkuNext'), thuNext: $('thuNext'),
+    };
+    let state = loadState() || C.freshState();
+    const progress = { pku: loadProgress('pku'), thu: loadProgress('thu') };
+
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(STORAGE)); } catch (_) { return null; }
+    }
+
+    function loadProgress(team) {
+      try { return JSON.parse(localStorage.getItem(PROGRESS_STORAGE_PREFIX + team)); } catch (_) { return null; }
+    }
+
+    function acceptState(next) {
+      state = next || C.freshState();
+      try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch (_) {}
+      render();
+    }
+
+    function acceptProgress(team, snapshot) {
+      if (!snapshot || snapshot.team !== team) return;
+      progress[team] = snapshot;
+      try { localStorage.setItem(PROGRESS_STORAGE_PREFIX + team, JSON.stringify(snapshot)); } catch (_) {}
+      render();
+    }
+
+    function timeLeft() {
+      if (state.phase !== 'solving') return 0;
+      return Math.max(0, state.endsAt - Date.now());
+    }
+
+    function fmt(ms) {
+      const total = Math.ceil(ms / 1000);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function phaseText() {
+      return { idle: 'WAITING', solving: '同时作答', scoring: '录入成绩', judged: '结果' }[state.phase] || 'WAITING';
+    }
+
+    function isFresh(team) {
+      const snapshot = progress[team];
+      return Boolean(state.puzzle && snapshot && snapshot.round === state.round && snapshot.puzzleId === state.puzzle.id);
+    }
+
+    function placedMap(team) {
+      const map = new Map();
+      if (!state.puzzle || !isFresh(team)) return map;
+      const placements = Array.isArray(progress[team].placements) ? progress[team].placements : [];
+      placements.forEach((placement, index) => {
+        const piece = state.puzzle.pieces[index];
+        if (!piece) return;
+        const shape = C.orientations(piece)[placement.rotation] || C.orientations(piece)[0];
+        shape.cells.forEach(c => map.set(`${placement.x + c.x},${placement.y + c.y}`, index + 1));
+      });
+      return map;
+    }
+
+    function drawBoard(team) {
+      const boardEl = E[`${team}Board`];
+      boardEl.innerHTML = '';
+      if (!state.puzzle) {
+        boardEl.innerHTML = '<div class="empty">等待题目</div>';
+        return;
+      }
+      const rows = state.puzzle.board;
+      const cols = Math.max(...rows.map(r => r.length));
+      const marks = placedMap(team);
+      const wrap = boardEl.parentElement.getBoundingClientRect();
+      const cell = Math.max(18, Math.min(58, Math.floor((wrap.width - 28) / cols), Math.floor((wrap.height - 28) / rows.length)));
+      boardEl.style.setProperty('--cell', `${cell}px`);
+      boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+      rows.forEach((row, y) => {
+        for (let x = 0; x < cols; x += 1) {
+          const mark = marks.get(`${x},${y}`);
+          const d = document.createElement('div');
+          if (mark) {
+            d.className = 'cell placed';
+            d.textContent = mark;
+          } else if (row[x] === '#') {
+            d.className = 'cell on';
+          } else if (x < row.length && row[x] === '.') {
+            d.className = 'cell blocked';
+          } else {
+            d.className = 'cell off';
+          }
+          boardEl.appendChild(d);
+        }
+      });
+    }
+
+    function drawPiece(el, rows) {
+      el.innerHTML = '';
+      if (!rows) return;
+      const grid = document.createElement('div');
+      grid.className = 'piece';
+      const cols = Math.max(...rows.map(r => r.length));
+      grid.style.gridTemplateColumns = `repeat(${cols}, var(--mini))`;
+      rows.forEach(row => {
+        for (let x = 0; x < cols; x += 1) {
+          const d = document.createElement('div');
+          d.className = `pCell ${row[x] === '#' ? 'on' : 'off'}`;
+          grid.appendChild(d);
+        }
+      });
+      el.appendChild(grid);
+    }
+
+    function updateTeam(team) {
+      const snapshot = progress[team];
+      const fresh = isFresh(team);
+      const step = fresh ? Math.min(snapshot.step || 0, state.puzzle.pieces.length) : 0;
+      E[`${team}Step`].textContent = `Step ${step}`;
+      if (!state.puzzle) {
+        E[`${team}Status`].textContent = '等待主持人开始题目。';
+        drawPiece(E[`${team}Next`], null);
+      } else if (!fresh) {
+        E[`${team}Status`].textContent = `等待${team === 'pku' ? '北大' : '清华'} iPad 上报本题进度。`;
+        drawPiece(E[`${team}Next`], state.puzzle.pieces[0]);
+      } else {
+        const age = Math.max(0, Math.round((Date.now() - snapshot.updatedAt) / 1000));
+        E[`${team}Status`].textContent = `${age}s 前更新 · 已连续放入 ${step} 块`;
+        const nextPiece = state.puzzle.pieces[step];
+        const rows = nextPiece ? C.orientations(nextPiece)[snapshot.rotation || 0]?.rows || nextPiece : null;
+        drawPiece(E[`${team}Next`], rows);
+      }
+      drawBoard(team);
+    }
+
+    function render() {
+      E.phase.textContent = state.round ? `第 ${state.round} 题 · ${phaseText()}` : phaseText();
+      E.clock.textContent = state.phase === 'solving' ? fmt(timeLeft()) : '--:--';
+      E.scoreText.textContent = `北大 ${state.scores.pku || 0} · 清华 ${state.scores.thu || 0}`;
+      updateTeam('pku');
+      updateTeam('thu');
+    }
+
+    if (window.Sync && Sync.BACKEND) {
+      Sync.display(ROOM, acceptState);
+      Sync.display(`${PROGRESS_ROOM_PREFIX}pku`, data => acceptProgress('pku', data));
+      Sync.display(`${PROGRESS_ROOM_PREFIX}thu`, data => acceptProgress('thu', data));
+    }
+    window.addEventListener('storage', e => {
+      if (e.key === STORAGE) acceptState(loadState());
+      if (e.key === PROGRESS_STORAGE_PREFIX + 'pku') acceptProgress('pku', loadProgress('pku'));
+      if (e.key === PROGRESS_STORAGE_PREFIX + 'thu') acceptProgress('thu', loadProgress('thu'));
+    });
+    window.addEventListener('resize', render);
+    setInterval(render, 250);
+    E.full.onclick = () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    };
+    render();
+  })();
+  </script>
+</body>
+</html>

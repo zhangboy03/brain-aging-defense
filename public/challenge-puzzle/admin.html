@@ -195,7 +195,9 @@
       <div class="sub">简化赛制：两队同时看题、同时拼图；倒计时结束后录入各自完成的最高 Step，Step 高者赢。</div>
     </div>
     <div class="topActions">
-      <button class="primary" id="open">打开 iPad 同步页</button>
+      <button id="openPku">打开北大 iPad</button>
+      <button id="openThu">打开清华 iPad</button>
+      <button class="primary" id="open">打开观众页</button>
       <div class="backend" id="backendTop"><span class="dot"></span>同步后端检测中</div>
     </div>
   </header>
@@ -286,7 +288,7 @@
   const C = window.ChallengePuzzle;
   const $ = id => document.getElementById(id);
   const E = {
-    open: $('open'), puzzle: $('puzzle'), seconds: $('seconds'), start: $('start'), finish: $('finish'), reset: $('reset'),
+    open: $('open'), openPku: $('openPku'), openThu: $('openThu'), puzzle: $('puzzle'), seconds: $('seconds'), start: $('start'), finish: $('finish'), reset: $('reset'),
     phase: $('phase'), round: $('round'), clock: $('clock'), winner: $('winner'), board: $('board'), pieces: $('pieces'),
     message: $('message'), thuScore: $('thuScore'), pkuScore: $('pkuScore'), thuStep: $('thuStep'), pkuStep: $('pkuStep'),
     thuSave: $('thuSave'), pkuSave: $('pkuSave'), thuResult: $('thuResult'), pkuResult: $('pkuResult'), next: $('next'),
@@ -471,7 +473,15 @@
 
   E.open.onclick = () => {
     const backend = window.Sync && Sync.BACKEND ? `?backend=${encodeURIComponent(Sync.BACKEND)}` : '';
-    window.open(`index.html${backend}`, 'challenge_puzzle_display');
+    window.open(`audience.html${backend}`, 'challenge_puzzle_audience');
+  };
+  E.openPku.onclick = () => {
+    const backend = window.Sync && Sync.BACKEND ? `&backend=${encodeURIComponent(Sync.BACKEND)}` : '';
+    window.open(`index.html?team=pku${backend}`, 'challenge_puzzle_pku');
+  };
+  E.openThu.onclick = () => {
+    const backend = window.Sync && Sync.BACKEND ? `&backend=${encodeURIComponent(Sync.BACKEND)}` : '';
+    window.open(`index.html?team=thu${backend}`, 'challenge_puzzle_thu');
   };
   E.puzzle.onchange = () => { if (!state.puzzle) render(); };
   E.competitionUnlock.onclick = () => {
