@@ -306,7 +306,7 @@
       position: fixed;
       z-index: 20;
       pointer-events: none;
-      transform: translate(-50%, -50%);
+      transform: none;
       opacity: .86;
       background: transparent;
       padding: 0;
@@ -543,10 +543,12 @@
       grid.className = 'piece';
       const cols = Math.max(...piece.map(r => r.length));
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      piece.forEach(row => {
+      piece.forEach((row, y) => {
         for (let i = 0; i < cols; i += 1) {
           const d = document.createElement('div');
           d.className = `${cellSizeClass} ${row[i] === '#' ? 'on' : 'off'}`;
+          d.dataset.x = String(i);
+          d.dataset.y = String(y);
           grid.appendChild(d);
         }
       });
@@ -648,10 +650,41 @@
     }
 
     function boardCellFromPoint(x, y) {
-      const el = document.elementFromPoint(x, y);
-      const cell = el && el.closest ? el.closest('.cell') : null;
-      if (!cell || !E.board.contains(cell) || cell.classList.contains('off')) return null;
-      return { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+      if (!state.puzzle) return null;
+      const rect = E.board.getBoundingClientRect();
+      if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) return null;
+      const cols = Math.max(...state.puzzle.board.map(r => r.length));
+      const cellSize = parseFloat(getComputedStyle(E.board).getPropertyValue('--cell')) || (rect.width / cols);
+      const cellX = Math.floor((x - rect.left) / cellSize);
+      const cellY = Math.floor((y - rect.top) / cellSize);
+      const row = state.puzzle.board[cellY] || '';
+      if (cellX < 0 || cellY < 0 || cellY >= state.puzzle.board.length || cellX >= cols || row[cellX] === ' ') return null;
+      return { x: cellX, y: cellY };
+    }
+
+    function dragTargetFromPoint(x, y) {
+      const cell = boardCellFromPoint(x, y);
+      if (!cell) return null;
+      const grab = dragInfo ? dragInfo.grab : { x: 0, y: 0 };
+      return { x: cell.x - grab.x, y: cell.y - grab.y };
+    }
+
+    function nearestGrabCell(card, event) {
+      const cells = [...card.querySelectorAll('.pCell.on')];
+      if (cells.length === 0) return { x: 0, y: 0 };
+      let best = cells[0];
+      let bestDistance = Infinity;
+      cells.forEach(cell => {
+        const rect = cell.getBoundingClientRect();
+        const dx = event.clientX - (rect.left + rect.width / 2);
+        const dy = event.clientY - (rect.top + rect.height / 2);
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          best = cell;
+          bestDistance = distance;
+        }
+      });
+      return { x: Number(best.dataset.x) || 0, y: Number(best.dataset.y) || 0 };
     }
 
     function placeAt(x, y) {
@@ -679,9 +712,21 @@
       drag = document.createElement('div');
       drag.className = 'ghost';
       const rows = C.orientations(state.puzzle.pieces[index])[work.rotation % C.orientations(state.puzzle.pieces[index]).length].rows;
+      const grab = nearestGrabCell(card, event);
+      const miniCell = getComputedStyle(card).getPropertyValue('--mini-cell');
+      if (miniCell) drag.style.setProperty('--mini-cell', miniCell);
       drag.appendChild(drawPieceGrid(rows, 'pCell'));
       document.body.appendChild(drag);
-      dragInfo = { startX: event.clientX, startY: event.clientY };
+      const anchor = drag.querySelector(`.pCell.on[data-x="${grab.x}"][data-y="${grab.y}"]`) || drag.querySelector('.pCell.on');
+      const anchorRect = anchor.getBoundingClientRect();
+      const dragRect = drag.getBoundingClientRect();
+      dragInfo = {
+        startX: event.clientX,
+        startY: event.clientY,
+        grab,
+        ghostOffsetX: anchorRect.left + anchorRect.width / 2 - dragRect.left,
+        ghostOffsetY: anchorRect.top + anchorRect.height / 2 - dragRect.top,
+      };
       moveDrag(event);
       document.addEventListener('pointermove', moveDrag);
       document.addEventListener('pointerup', endDrag, { once: true });
@@ -689,15 +734,15 @@
 
     function moveDrag(event) {
       if (!drag) return;
-      drag.style.left = `${event.clientX}px`;
-      drag.style.top = `${event.clientY}px`;
-      hover = boardCellFromPoint(event.clientX, event.clientY);
+      drag.style.left = `${event.clientX - dragInfo.ghostOffsetX}px`;
+      drag.style.top = `${event.clientY - dragInfo.ghostOffsetY}px`;
+      hover = dragTargetFromPoint(event.clientX, event.clientY);
       lastPuzzleKey = '';
       render();
     }
 
     function endDrag(event) {
-      const target = boardCellFromPoint(event.clientX, event.clientY);
+      const target = dragTargetFromPoint(event.clientX, event.clientY);
       const moved = dragInfo ? Math.hypot(event.clientX - dragInfo.startX, event.clientY - dragInfo.startY) : 0;
       if (drag) drag.remove();
       drag = null;
