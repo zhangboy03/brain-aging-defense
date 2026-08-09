@@ -12,7 +12,7 @@ curl -sS -X POST "https://space.ai-builders.com/backend/v1/deployments" \
   -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
-    "repo_url": "https://github.com/zhangboy03/brain-aging-defense",
+    "repo_url": "https://github.com/zhangboy03/qingniange-variety-games",
     "service_name": "brain-aging-sync",
     "branch": "main"
   }'

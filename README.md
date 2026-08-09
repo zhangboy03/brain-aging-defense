@@ -1,92 +1,25 @@
-# Brain Aging Defense
+# 清年阁综艺游戏库
 
-A browser-based brain-training remake project inspired by Ryuta Kawashima's cognitive training research and publicly available gameplay demonstrations. The goal is to rebuild classic short-session exercises for memory, attention, tracking, and reaction training as an open, iterative web project.
+清年阁历次活动使用过的浏览器综艺游戏与互动原型。仓库统一保存游戏页面、主持人控制台、选手/观众大屏、跨设备同步服务和规则测试，便于复用、复盘与继续迭代。
 
-> Disclaimer: This is not an official Nintendo, Tohoku University, or Ryuta Kawashima project. It does not use Nintendo, professor, or original-game trademarks or branded assets. The project is intended for learning, research, and interactive prototype reconstruction.
+## 在线入口
 
-## Live Demo
+- 游戏主页：<https://zhangboy03.github.io/qingniange-variety-games/>
+- 各游戏的主持人、选手与观众入口见 [`docs/game-archive.md`](docs/game-archive.md)
 
-GitHub Pages:
+## 游戏归档
 
-https://zhangboy03.github.io/brain-aging-defense/
+| 游戏 | 目录 | 形态 |
+| --- | --- | --- |
+| 脑力八练（暗格追踪） | `/` | 单人训练主页 |
+| 蜂窝抢答（HEXAGON） | `/hexagon/` | 主持人控制台 + 投屏 |
+| 进出数数 | `/head-count/` | 主持人控制台 + 选手大屏 |
+| 魔方大战 | `/cube-battle/` | 主持人控制台 + 投屏 |
+| 盲五子棋 | `/blind-gomoku/` | 主持人控制台 + 双方选手页 |
+| 盲五子棋（随机色版） | `/blind-gomoku-v2/` | 历史玩法变体 |
+| 挑战拼图 | `/challenge-puzzle/` | 主持人控制台 + 选手/观众页 |
 
-## Current Status
-
-The public page now lists 8 training entries. Only one is currently implemented as a polished playable sample:
-
-- `Hidden Grid Tracking`: a cat-and-mouse memory tracking game. The player first memorizes where the mice are, then watches cats or mice enter from the board edges and push full rows or columns. At the end, the player must identify all remaining mice.
-
-The other seven exercises are not yet refined. They are kept as visible roadmap entries: continuous calculation, card flipping memory, reading retention, symbol judgment, block tracking, cup tracking, and auditory calculation. Contributions are welcome for rules, assets, animation timing, and progression design.
-
-## Hidden Grid Tracking Rules
-
-- The board is 4 x 3, with 12 covered cells.
-- At the beginning, cats and mice are revealed briefly, then all cells are covered.
-- Each move pushes one animal in from the left, right, top, or bottom edge.
-- The whole affected row or column slides together, and one animal exits from the opposite side.
-- The entering and exiting animals can be the same or different, so the final number of mice can change.
-- To keep puzzles playable, the generator constrains the final mouse count to 2-8.
-- In the answer phase, the player must click every mouse still on the board. Clicking a cat fails the round.
-
-## Local Development
-
-```bash
-npm install
-npm run dev
-```
-
-Build and audit:
-
-```bash
-npm run build
-npm audit --audit-level=moderate
-```
-
-## Tech Stack
-
-- React
-- TypeScript
-- Vite
-- GitHub Pages
-
-## Contribution Ideas
-
-- Refine the remaining seven training games.
-- Reconstruct each game's rules, animation timing, start flow, failure flow, and success flow from public reference videos.
-- Replace or improve assets with CC0, permissively licensed, or original artwork.
-- Improve mobile responsiveness, accessibility labels, and testable puzzle generators.
-
----
-
-# 脑力八练
-
-一个面向浏览器的脑力训练复刻项目。项目受川岛隆太教授脑训练研究和公开演示玩法启发，目标是把经典的短时记忆、注意力、追踪和反应训练做成可持续迭代的开源网页版本。
-
-> 免责声明：本项目不是任天堂、东北大学或川岛隆太教授的官方作品，也不使用任天堂、教授或原作的商标与品牌素材。当前实现仅用于学习、研究和交互原型复刻。
-
-## 在线体验
-
-GitHub Pages：
-
-https://zhangboy03.github.io/brain-aging-defense/
-
-## 当前状态
-
-公开页面目前列出 8 个训练入口，其中只有一个高完成度样例：
-
-- `暗格追踪`：猫鼠位置记忆与进出推动追踪游戏。玩家先记住起始鼠的位置，随后观察每一次猫或鼠从边缘进入、把整行或整列推出，最后点出全部剩余的鼠。
-
-其他七种训练游戏还没有细化。当前先作为待办入口保留：连续计算、翻牌记忆、朗读保持、符号判断、方块追踪、杯位追踪、听算保持。欢迎继续补充规则、素材、动画和关卡节奏，把这一套训练逐步完善。
-
-## 暗格追踪规则
-
-- 棋盘为 4 x 3，共 12 个暗格。
-- 开始时展示猫和鼠的位置，随后全部盖上问号。
-- 每次移动会从左、右、上、下任一边推入一只动物。
-- 被推动的整行或整列同步滑动，另一端真实推出一只动物。
-- 进入和退出的动物可以相同，也可以不同；因此最终鼠的数量可能变化。
-- 为了保证题目可玩，生成器会把最终鼠数限制在 2 到 8 之间。
-- 答题阶段需要点出所有最终还在棋盘上的鼠；点到猫即失败。
+详细玩法、页面角色、同步房间和测试命令集中记录在[游戏档案](docs/game-archive.md)中。新增游戏时，请同时更新该档案，避免入口和规则散落。
 
 ## 本地开发
 
@@ -95,78 +28,45 @@ npm install
 npm run dev
 ```
 
-构建检查：
+构建与测试：
 
 ```bash
 npm run build
-npm audit --audit-level=moderate
+node --test scripts/test_blind_gomoku.mjs
+node --test scripts/test_challenge_puzzle.mjs
+node --test scripts/test_head_count.mjs
+node --test scripts/test_sync_contracts.mjs
+python3 -m pytest server/test_app.py
 ```
+
+## 项目结构
+
+- `src/`：脑力八练 React 主页与暗格追踪游戏
+- `public/<game>/`：各综艺游戏的静态页面与浏览器端规则引擎
+- `public/sync.js`：跨设备实时同步客户端
+- `server/`：FastAPI 同步中转服务
+- `scripts/`：规则与同步契约测试
+- `docs/game-archive.md`：游戏归档总表
+- `docs/superpowers/`：早期设计与实施记录
+
+## 多屏实时同步
+
+需要跨设备联动的游戏采用“主持人控制台 + 多个投屏/选手页”结构。控制台把状态和事件发送到 FastAPI 中转服务，大屏通过 SSE 接收广播；后端不可达时，页面回退到同设备的 `localStorage` / `BroadcastChannel` 同步。
+
+- 默认同步后端：`https://bsync.zhangboy.xyz`
+- 后端部署：根目录 `Dockerfile`、`deploy.sh` 与 `server/`
+- 同步客户端：`public/sync.js`
 
 ## 技术栈
 
-- React
-- TypeScript
-- Vite
+- React、TypeScript、Vite
+- 原生 HTML、CSS、JavaScript 游戏页面
+- FastAPI、SSE
 - GitHub Pages
 
-## 多屏实时同步（控制台 → 多大屏）
+## 维护约定
 
-部分游戏（蜂窝抢答 `hexagon`、数人头 `head-count`）是「主持人控制台 + 投屏大屏」结构。
-
-**目标场景**：用一台电脑作为**唯一控制台**，实时控制**两个同时在线的 iPad 大屏**
-（北大队 / 清华队各一台），让两屏画面**完全同步**——相同题目、对方是否抢答、
-自己是否答对，全部即时广播。
-
-**为什么旧版本跨设备不同步**：原同步只用 `localStorage` + `BroadcastChannel`，
-二者都只在「同一浏览器、同源、不同标签页」之间生效，状态从不上网，因此跨设备永远不同步。
-
-**方案**：新增一个 FastAPI 中转后端，部署到 [AI Builder Space](https://space.ai-builders.com)
-（底层 Koyeb 容器）。控制台把状态/事件 `POST` 给后端，大屏经 **SSE** 实时收推送并扇出到所有屏。
-游戏页面仍托管在 GitHub Pages，只多连一个后端。后端可达失败时自动回退到本地
-`localStorage`/`BroadcastChannel`（同设备仍可用）。
-
-详细设计见 [`docs/superpowers/specs/2026-06-10-cross-device-sync-design.md`](docs/superpowers/specs/2026-06-10-cross-device-sync-design.md)。
-
-后端相关文件：根目录 `Dockerfile`、`server/`（FastAPI 中转）、`public/sync.js`（共享客户端同步层）。
-
-## 盲五子棋（Blind Gomoku）
-
-复刻 Netflix《The Devil's Plan》的密室对决游戏：棋子底层是黑白五子棋，但表面被涂成
-8 种杂色——双方必须**靠记忆**记住每一手的真实归属，连五瞬间系统自动判定并全盘翻面揭示。
-表面颜色可自选：既能给自己做标记，也能骗对手（节目里 AI 就靠跟用同色棋子扰乱选手记忆）。
-
-- 棋手页（两台 iPad，进入后各选清华/北大）：`/blind-gomoku/`
-- 主持人控制台（上帝视角 + 开局/重置/强制揭示）：`/blind-gomoku/admin.html`
-- 架构：控制台是唯一权威引擎，iPad 的落子经 relay 事件转发、控制台校验后以完整快照广播；
-  断线重连/睡眠唤醒自动对齐。房间名 `blind-gomoku`。
-- 规则引擎单测：`node --test scripts/test_blind_gomoku.mjs`
-- 设计文档：[`docs/superpowers/specs/2026-06-10-blind-gomoku-design.md`](docs/superpowers/specs/2026-06-10-blind-gomoku-design.md)
-
-### 随机色版（Blind Gomoku v2）
-
-旧版完整保留。新版去掉了选手自选颜色：每落一子，主持人控制台权威地**随机指定**一个表面色，
-选手无法用固定颜色给自己做标记，必须真正**记住自己每一手的颜色**才能认出连线——记忆难度更高。
-
-- 棋手页：`/blind-gomoku-v2/`，主持人控制台：`/blind-gomoku-v2/admin.html`
-- 与旧版相互独立：房间名 `blind-gomoku-v2`，规则引擎（`core.js`）与旧版一致，仅落子时由控制台
-  在 `onEvent` 里随机指定 `color`，选手端落子事件不再携带颜色，预览显示为中性灰「?」。
-
-## 挑战拼图（Challenge Puzzle）
-
-清华 / 北大 1v1 同步拼图挑战。主持人在电脑控制台出题并启动统一倒计时，两台 iPad 显示完全相同
-的题面、拼图块、倒计时和结果。选手从 1 号块开始连续摆放，可旋转、不可翻面、不可跳号；时间结束后，
-主持人录入双方完成的最高 Step，Step 高者赢，同 Step 判平局。
-
-- iPad 同步页：`/challenge-puzzle/index.html`
-- 主持人控制台：`/challenge-puzzle/admin.html`
-- 房间名：`challenge-puzzle`
-- 默认同步后端：`https://bsync.zhangboy.xyz`；如需临时切换，可用 `?backend=https://你的后端` 或在控制台“同步后端”区保存地址。
-- 题库包含每题 `maxStep`，并用求解器验证官方答案和更高 Step 不可行。
-- 规则引擎单测：`node --test scripts/test_challenge_puzzle.mjs`
-
-## 贡献方向
-
-- 继续细化剩余七种训练游戏。
-- 对照公开视频还原每个游戏的节奏、动画、开始/失败/成功流程。
-- 替换更合适的 CC0、宽松许可或自制素材。
-- 增加移动端适配、无障碍标签和可测试的关卡生成器。
+- 保留已经实际使用过的玩法版本；变体使用独立目录，不覆盖旧版。
+- 每个游戏的页面入口、同步房间和测试方式都登记到游戏档案。
+- 优先使用原创或许可清晰的素材。
+- 修改同步协议或规则引擎后，运行对应测试并完成实际多屏演练。
